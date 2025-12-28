@@ -13,8 +13,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // AUTH
 // =====================
 function tryLogin() {
-  const login = document.getElementById('auth-login').value.trim();
-  const pass = document.getElementById('auth-pass').value.trim();
+  const login = document.getElementById('auth-login')?.value?.trim();
+  const pass = document.getElementById('auth-pass')?.value?.trim();
   const error = document.getElementById('auth-error');
 
   if (login === 'game44' && pass === 'thewanga') {
@@ -23,7 +23,7 @@ function tryLogin() {
     loadUsers();
     loadInstances();
   } else {
-    error.classList.remove('hidden');
+    error?.classList.remove('hidden');
   }
 }
 
@@ -42,16 +42,12 @@ function showPanel() {
 // =====================
 async function loadUsers() {
   const select = document.getElementById('task-target');
+  if (!select) return;
+
   select.innerHTML = `<option value="">Общее задание</option>`;
 
-  const { data, error } = await sb
-    .from('users')
-    .select('tg_id, id');
-
-  if (error) {
-    console.error(error);
-    return;
-  }
+  const { data, error } = await sb.from('users').select('tg_id, id');
+  if (error) return;
 
   data.forEach(u => {
     const opt = document.createElement('option');
@@ -62,24 +58,31 @@ async function loadUsers() {
 }
 
 // =====================
-// CREATE TASK
+// CREATE TASK (SAFE)
 // =====================
 async function createTask() {
-  const title = document.getElementById('task-title').value.trim();
-  const desc = document.getElementById('task-desc').value.trim();
-  const reward = parseFloat(document.getElementById('task-reward').value);
-  const duration = parseInt(document.getElementById('task-duration').value, 10);
-  const faction = document.getElementById('task-faction').value || null;
-  const target = document.getElementById('task-target').value || null;
+  const title = document.getElementById('task-title')?.value?.trim();
+  const desc = document.getElementById('task-desc')?.value?.trim();
+  const rewardVal = document.getElementById('task-reward')?.value;
+  const faction = document.getElementById('task-faction')?.value || null;
+  const target = document.getElementById('task-target')?.value || null;
 
-  if (!title || isNaN(reward) || isNaN(duration)) {
-    alert('Заполни название, награду и время');
+  // ⛑️ duration optional
+  const durationInput = document.getElementById('task-duration');
+  const duration = durationInput
+    ? parseInt(durationInput.value, 10)
+    : 120; // дефолт 120 минут
+
+  const reward = parseFloat(rewardVal);
+
+  if (!title || isNaN(reward)) {
+    alert('Заполни название и награду');
     return;
   }
 
   const { error } = await sb.from('tasks').insert({
     title,
-    description: desc,
+    description: desc || null,
     reward,
     duration_minutes: duration,
     faction,
@@ -94,10 +97,15 @@ async function createTask() {
 
   alert('Задание создано');
 
-  document.getElementById('task-title').value = '';
-  document.getElementById('task-desc').value = '';
-  document.getElementById('task-reward').value = '';
-  document.getElementById('task-duration').value = '';
+  // очистка
+  if (document.getElementById('task-title'))
+    document.getElementById('task-title').value = '';
+  if (document.getElementById('task-desc'))
+    document.getElementById('task-desc').value = '';
+  if (document.getElementById('task-reward'))
+    document.getElementById('task-reward').value = '';
+  if (document.getElementById('task-duration'))
+    document.getElementById('task-duration').value = '';
 }
 
 // =====================
@@ -105,6 +113,8 @@ async function createTask() {
 // =====================
 async function loadInstances() {
   const container = document.getElementById('instances-container');
+  if (!container) return;
+
   container.innerHTML = 'Загрузка...';
 
   const { data, error } = await sb
@@ -113,17 +123,16 @@ async function loadInstances() {
     .order('started_at', { ascending: false });
 
   if (error) {
-    console.error(error);
     container.innerHTML = 'Ошибка загрузки';
     return;
   }
-
-  container.innerHTML = '';
 
   if (data.length === 0) {
     container.innerHTML = 'Пока нет активных заданий';
     return;
   }
+
+  container.innerHTML = '';
 
   data.forEach(inst => {
     const el = document.createElement('div');
@@ -159,40 +168,28 @@ async function loadInstances() {
 }
 
 // =====================
-// RESOLVE TASK INSTANCE
+// RESOLVE INSTANCE
 // =====================
 async function resolveInstance(instanceId, approve) {
-  // 1️⃣ инстанс
-  const { data: inst, error: instErr } = await sb
+  const { data: inst } = await sb
     .from('task_instances')
     .select('*')
     .eq('id', instanceId)
     .single();
 
-  if (instErr || !inst) {
-    alert('Инстанс не найден');
-    return;
-  }
-
-  // 2️⃣ статус
-  const newStatus = approve ? 'approved' : 'rejected';
+  if (!inst) return;
 
   await sb.from('task_instances').update({
-    status: newStatus,
+    status: approve ? 'approved' : 'rejected',
     resolved_at: new Date().toISOString()
   }).eq('id', instanceId);
 
-  let reward = 0;
-
-  // 3️⃣ если принято — начисляем
   if (approve) {
     const { data: task } = await sb
       .from('tasks')
       .select('reward')
       .eq('id', inst.task_id)
       .single();
-
-    reward = Number(task.reward || 0);
 
     const { data: user } = await sb
       .from('users')
@@ -201,24 +198,12 @@ async function resolveInstance(instanceId, approve) {
       .single();
 
     const newBalance =
-      Number(user.balance || 0) + reward;
+      Number(user.balance || 0) + Number(task.reward || 0);
 
     await sb.from('users')
       .update({ balance: newBalance })
       .eq('tg_id', inst.player_tg_id);
   }
-
-  // 4️⃣ TG notify
-  fetch('/tg/task/resolve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      player: inst.player_name,
-      title: inst.task_id,
-      ok: approve,
-      reward
-    })
-  });
 
   loadInstances();
 }
