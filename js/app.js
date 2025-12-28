@@ -1,68 +1,76 @@
-import { loadTasks } from './tasks.js';
 import { supabase, tg } from './config.js';
 import { initRocket } from './rocket.js';
+import { loadTasks } from './tasks.js';
 
 // =====================
 // APP START
 // =====================
 window.onload = async () => {
   try {
-    // ===== TELEGRAM INIT =====
+    // =====================
+    // TELEGRAM INIT
+    // =====================
     if (tg) {
       tg.ready();
       tg.expand();
     }
 
-    // ===== SUPABASE AUTH =====
+    // =====================
+    // SUPABASE AUTH (STABLE)
+    // =====================
     const { data: sessionData } = await supabase.auth.getSession();
+
     if (!sessionData.session) {
       await supabase.auth.signInAnonymously();
     }
 
     const { data: authData } = await supabase.auth.getUser();
-    const authId = authData.user.id;
+    if (!authData.user) {
+      throw new Error('Supabase auth failed');
+    }
 
-    // ===== TELEGRAM USER =====
+    // =====================
+    // TELEGRAM USER
+    // =====================
     let tgUser = tg?.initDataUnsafe?.user || null;
 
-    // fallback tg id (для теста вне TG)
+    // fallback (если не в TG)
     if (!tgUser) {
       let storedId = localStorage.getItem('fallback_tg_id');
       if (!storedId) {
         storedId = 'test_' + Math.floor(Math.random() * 999999);
         localStorage.setItem('fallback_tg_id', storedId);
       }
-
-      tgUser = {
-        id: storedId
-      };
+      tgUser = { id: storedId };
     }
 
     const tgId = tgUser.id.toString();
 
-    // ===== ИМЯ ИЗ TELEGRAM (ЕСЛИ ПРИШЛО) =====
+    // имя (если пришло)
     let telegramName = null;
-
     if (tgUser.first_name && tgUser.first_name.trim().length > 0) {
       telegramName = tgUser.first_name.trim();
     }
 
-    // ===== ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ =====
+    // =====================
+    // CHECK USER IN DB
+    // =====================
     const { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('tg_id', tgId)
       .maybeSingle();
 
-    // ===== РЕГИСТРАЦИЯ =====
+    // =====================
+    // REGISTRATION FLOW
+    // =====================
     if (!user) {
       const modal = document.getElementById('reg-modal');
       modal.classList.remove('hidden');
 
       window.completeRegistration = async (faction) => {
-        // имя, введённое вручную
-        const manualNameInput = document.getElementById('manual-name');
-        const manualName = manualNameInput?.value?.trim();
+        const manualName =
+          document.getElementById('manual-name')?.value?.trim();
 
         const finalName =
           telegramName ||
@@ -72,27 +80,34 @@ window.onload = async () => {
         await supabase.from('users').insert({
           id: finalName,
           tg_id: tgId,
-          auth_id: authId,
           faction,
           balance: 0,
           skulls: 0
         });
 
-        // полностью убираем модалку
         modal.style.display = 'none';
         modal.style.pointerEvents = 'none';
-        document.body.style.overflow = 'auto';
 
-        initApp({
+        const newPlayer = {
           id: finalName,
+          tg_id: tgId,
           faction,
           balance: 0,
           skulls: 0
-        });
+        };
+
+        initApp(newPlayer);
+
+        window.player = {
+          tg_id: tgId,
+          faction,
+          id: finalName
+        };
+
         loadTasks({
-  tg_id: tgId,
-  faction
-});
+          tg_id: tgId,
+          faction
+        });
 
         initRocket();
       };
@@ -100,13 +115,22 @@ window.onload = async () => {
       return;
     }
 
-    // ===== ПОЛЬЗОВАТЕЛЬ СУЩЕСТВУЕТ =====
+    // =====================
+    // EXISTING USER
+    // =====================
     initApp(user);
 
-loadTasks({
-  tg_id: user.tg_id,
-  faction: user.faction
-});
+    window.player = {
+      tg_id: user.tg_id,
+      faction: user.faction,
+      id: user.id
+    };
+
+    loadTasks({
+      tg_id: user.tg_id,
+      faction: user.faction
+    });
+
     initRocket();
 
   } catch (e) {
@@ -129,16 +153,16 @@ function initApp(player) {
   }
 
   if (balanceEl) {
-    balanceEl.innerText = `${Number(player.balance || 0).toFixed(2)} TON`;
+    balanceEl.innerText =
+      `${Number(player.balance || 0).toFixed(2)} TON`;
   }
 
   if (skullsEl) {
-    skullsEl.innerText = `${player.skulls || 0} 💀`;
+    skullsEl.innerText =
+      `${player.skulls || 0} 💀`;
   }
 
   if (profileTagEl && player.id) {
     profileTagEl.innerText = player.id;
   }
 }
-
-
