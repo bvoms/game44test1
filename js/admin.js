@@ -1,7 +1,33 @@
-// =====================
-// INIT
-// =====================
-document.addEventListener('DOMContentLoaded', async () => {
+/* =====================
+   SUPABASE
+===================== */
+// sb должен быть объявлен в admin.html через config.js
+
+/* =====================
+   TELEGRAM CONFIG
+===================== */
+const TG_BOT_TOKEN = '8321050426:AAH4fKadiex7i9NQnC7T2ZyjscRknQgFKlI';
+const TG_CHAT_ID = '-1003693227904';
+
+function sendTelegram(text) {
+  const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
+  const data = new URLSearchParams({
+    chat_id: TG_CHAT_ID,
+    text,
+    parse_mode: 'Markdown'
+  });
+
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: data
+  });
+}
+
+/* =====================
+   INIT
+===================== */
+document.addEventListener('DOMContentLoaded', () => {
   if (sessionStorage.getItem('admin_auth') === '1') {
     showPanel();
     loadUsers();
@@ -9,9 +35,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// =====================
-// AUTH
-// =====================
+/* =====================
+   AUTH
+===================== */
 function tryLogin() {
   const login = document.getElementById('auth-login')?.value?.trim();
   const pass = document.getElementById('auth-pass')?.value?.trim();
@@ -37,9 +63,9 @@ function showPanel() {
   document.getElementById('admin-panel').classList.remove('hidden');
 }
 
-// =====================
-// USERS (для личных заданий)
-// =====================
+/* =====================
+   LOAD USERS (для личных заданий)
+===================== */
 async function loadUsers() {
   const select = document.getElementById('task-target');
   if (!select) return;
@@ -57,23 +83,18 @@ async function loadUsers() {
   });
 }
 
-// =====================
-// CREATE TASK (SAFE)
-// =====================
+/* =====================
+   CREATE TASK
+===================== */
 async function createTask() {
   const title = document.getElementById('task-title')?.value?.trim();
-  const desc = document.getElementById('task-desc')?.value?.trim();
-  const rewardVal = document.getElementById('task-reward')?.value;
+  const desc = document.getElementById('task-desc')?.value?.trim() || null;
+  const reward = parseFloat(document.getElementById('task-reward')?.value);
   const faction = document.getElementById('task-faction')?.value || null;
   const target = document.getElementById('task-target')?.value || null;
 
-  // ⛑️ duration optional
   const durationInput = document.getElementById('task-duration');
-  const duration = durationInput
-    ? parseInt(durationInput.value, 10)
-    : 120; // дефолт 120 минут
-
-  const reward = parseFloat(rewardVal);
+  const duration = durationInput ? parseInt(durationInput.value, 10) : 120;
 
   if (!title || isNaN(reward)) {
     alert('Заполни название и награду');
@@ -82,7 +103,7 @@ async function createTask() {
 
   const { error } = await sb.from('tasks').insert({
     title,
-    description: desc || null,
+    description: desc,
     reward,
     duration_minutes: duration,
     faction,
@@ -90,32 +111,25 @@ async function createTask() {
   });
 
   if (error) {
-    console.error(error);
     alert('Ошибка создания задания');
+    console.error(error);
     return;
   }
 
   alert('Задание создано');
 
-  // очистка
-  if (document.getElementById('task-title'))
-    document.getElementById('task-title').value = '';
-  if (document.getElementById('task-desc'))
-    document.getElementById('task-desc').value = '';
-  if (document.getElementById('task-reward'))
-    document.getElementById('task-reward').value = '';
-  if (document.getElementById('task-duration'))
-    document.getElementById('task-duration').value = '';
+  document.getElementById('task-title').value = '';
+  if (document.getElementById('task-desc')) document.getElementById('task-desc').value = '';
+  document.getElementById('task-reward').value = '';
+  if (document.getElementById('task-duration')) document.getElementById('task-duration').value = '';
 }
 
-// =====================
-// LOAD TASK INSTANCES
-// =====================
+/* =====================
+   LOAD TASK INSTANCES
+===================== */
 async function loadInstances() {
   const container = document.getElementById('instances-container');
   if (!container) return;
-
-  container.innerHTML = 'Загрузка...';
 
   const { data, error } = await sb
     .from('task_instances')
@@ -127,12 +141,12 @@ async function loadInstances() {
     return;
   }
 
+  container.innerHTML = '';
+
   if (data.length === 0) {
-    container.innerHTML = 'Пока нет активных заданий';
+    container.innerHTML = 'Пока нет заданий';
     return;
   }
-
-  container.innerHTML = '';
 
   data.forEach(inst => {
     const el = document.createElement('div');
@@ -146,14 +160,14 @@ async function loadInstances() {
           ? `
         <div class="flex gap-2 pt-2">
           <button
-            onclick="resolveInstance('${inst.id}', true)"
             class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold"
+            onclick="resolveInstance('${inst.id}', true)"
           >
             Принять
           </button>
           <button
-            onclick="resolveInstance('${inst.id}', false)"
             class="bg-rose-600 px-3 py-1 rounded text-xs font-bold"
+            onclick="resolveInstance('${inst.id}', false)"
           >
             Отклонить
           </button>
@@ -167,9 +181,9 @@ async function loadInstances() {
   });
 }
 
-// =====================
-// RESOLVE INSTANCE
-// =====================
+/* =====================
+   RESOLVE INSTANCE
+===================== */
 async function resolveInstance(instanceId, approve) {
   const { data: inst } = await sb
     .from('task_instances')
@@ -179,10 +193,16 @@ async function resolveInstance(instanceId, approve) {
 
   if (!inst) return;
 
-  await sb.from('task_instances').update({
-    status: approve ? 'approved' : 'rejected',
-    resolved_at: new Date().toISOString()
-  }).eq('id', instanceId);
+  const status = approve ? 'approved' : 'rejected';
+
+  await sb.from('task_instances')
+    .update({
+      status,
+      resolved_at: new Date().toISOString()
+    })
+    .eq('id', instanceId);
+
+  let reward = 0;
 
   if (approve) {
     const { data: task } = await sb
@@ -191,26 +211,32 @@ async function resolveInstance(instanceId, approve) {
       .eq('id', inst.task_id)
       .single();
 
+    reward = Number(task.reward || 0);
+
     const { data: user } = await sb
       .from('users')
       .select('balance')
       .eq('tg_id', inst.player_tg_id)
       .single();
 
-    const newBalance =
-      Number(user.balance || 0) + Number(task.reward || 0);
-
     await sb.from('users')
-      .update({ balance: newBalance })
+      .update({ balance: Number(user.balance || 0) + reward })
       .eq('tg_id', inst.player_tg_id);
   }
+
+  // 🔔 TELEGRAM
+  sendTelegram(
+    approve
+      ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${inst.player_name}\n+${reward}`
+      : `❌ *ОТКЛОНЕНО*\n👤 ${inst.player_name}`
+  );
 
   loadInstances();
 }
 
-// =====================
-// EXPOSE
-// =====================
+/* =====================
+   EXPOSE
+===================== */
 window.tryLogin = tryLogin;
 window.logout = logout;
 window.createTask = createTask;
