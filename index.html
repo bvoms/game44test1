@@ -17,7 +17,7 @@
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Supabase -->
+  <!-- Supabase SDK (ВАЖНО: до app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Styles -->
@@ -25,6 +25,7 @@
 </head>
 
 <body class="min-h-screen pb-24">
+
 
     <!-- Header -->
     <header class="p-4 glass sticky top-0 z-50 flex justify-between items-center border-b border-purple-500/20">
@@ -147,16 +148,43 @@
         <button onclick="switchTab('profile')" class="nav-btn flex-1 text-violet-400/50" id="nav-profile"><i class="fas fa-user text-lg"></i></button>
     </nav>
 
-    <div id="reg-modal" class="fixed inset-0 bg-[#0f0716] z-[100] flex items-center justify-center p-6 hidden">
-        <div class="w-full max-w-xs space-y-6 text-center">
-            <h2 class="text-2xl font-black italic text-violet-100 uppercase">Регистрация</h2>
-            <div class="grid grid-cols-1 gap-4">
-                <button onclick="completeRegistration('44')" class="p-6 rounded-3xl border-2 border-violet-500/30 bg-violet-900/10 active:scale-95 transition-all"><div class="text-xl font-black text-white">ИГРОК 44</div><div class="text-[8px] uppercase tracking-widest text-violet-400">Интернет</div></button>
-                <button onclick="completeRegistration('93')" class="p-6 rounded-3xl border-2 border-emerald-500/30 bg-emerald-900/10 active:scale-95 transition-all"><div class="text-xl font-black text-white">ИГРОК 93</div><div class="text-[8px] uppercase tracking-widest text-emerald-400">Реальная жизнь</div></button>
-            </div>
-        </div>
+     <div id="reg-modal" class="fixed inset-0 bg-[#0f0716] z-[100] flex items-center justify-center p-6 hidden">
+    <div class="w-full max-w-xs space-y-6 text-center">
+      <h2 class="text-2xl font-black italic text-violet-100 uppercase">Регистрация</h2>
+      <div class="grid grid-cols-1 gap-4">
+        <button onclick="completeRegistration('44')" class="p-6 rounded-3xl border-2 border-violet-500/30 bg-violet-900/10 active:scale-95 transition-all">
+          <div class="text-xl font-black text-white">ИГРОК 44</div>
+          <div class="text-[8px] uppercase tracking-widest text-violet-400">Интернет</div>
+        </button>
+        <button onclick="completeRegistration('93')" class="p-6 rounded-3xl border-2 border-emerald-500/30 bg-emerald-900/10 active:scale-95 transition-all">
+          <div class="text-xl font-black text-white">ИГРОК 93</div>
+          <div class="text-[8px] uppercase tracking-widest text-emerald-400">Реальная жизнь</div>
+        </button>
+      </div>
     </div>
+  </div>
 
-     <script type="module" src="./js/app.js"></script>
+  <!-- ================= SUPABASE CLIENT (GLOBAL FOR DEBUG) ================= -->
+  <script type="module">
+    const SUPABASE_URL = 'https://xzzaoniuzvcxqfugvfzh.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_YAn708jttD0b0vAGLPreog_ZnCvFhAH';
+
+    const { createClient } = window.supabase;
+
+    // 🔥 ГЛОБАЛЬНЫЙ КЛИЕНТ ДЛЯ КОНСОЛИ
+    window.sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false
+      }
+    });
+
+    console.log('✅ Supabase client ready as window.sb');
+  </script>
+
+  <!-- ================= APP ================= -->
+  <script type="module" src="./js/app.js"></script>
+
 </body>
 </html>
