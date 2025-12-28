@@ -7,80 +7,64 @@
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./css/admin.css">
 </head>
 
-<body class="p-6 min-h-screen">
+<body class="p-6 min-h-screen bg-black text-white">
 
-  <!-- Login Screen -->
-  <div id="admin-auth" class="fixed inset-0 bg-[#07030a] z-[1000] flex items-center justify-center p-6">
-    <div class="w-full max-w-sm glass neon-border p-10 rounded-[3rem] space-y-8 text-center">
-      <div class="w-20 h-20 bg-violet-600 rounded-3xl mx-auto flex items-center justify-center shadow-2xl">
-        <i class="fas fa-shield-halved text-3xl text-white"></i>
-      </div>
+  <!-- AUTH -->
+  <div id="admin-auth" class="fixed inset-0 flex items-center justify-center">
+    <div class="bg-[#120a1a] p-8 rounded-3xl w-full max-w-sm space-y-4 text-center">
+      <h1 class="text-2xl font-black uppercase">Admin Login</h1>
 
-      <div>
-        <h1 class="text-3xl font-black italic uppercase tracking-tighter text-white">
-          G44 <span class="text-violet-500">CONTROL</span>
-        </h1>
-        <p class="text-xs text-violet-400/60 uppercase font-bold tracking-widest mt-2">
-          Введите уровень доступа
-        </p>
-      </div>
+      <input id="auth-login" placeholder="Логин"
+        class="w-full p-4 rounded-xl bg-black/40 text-white text-center">
+      <input id="auth-pass" type="password" placeholder="Пароль"
+        class="w-full p-4 rounded-xl bg-black/40 text-white text-center">
 
-      <div class="space-y-4">
-        <input
-          type="text"
-          id="auth-login"
-          placeholder="Логин"
-          class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none text-white font-bold text-center"
-        >
-        <input
-          type="password"
-          id="auth-pass"
-          placeholder="Пароль"
-          class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none text-white font-bold text-center"
-        >
+      <button onclick="tryLogin()"
+        class="w-full bg-violet-600 p-4 rounded-xl font-black uppercase">
+        Войти
+      </button>
 
-        <button
-          onclick="tryLogin()"
-          class="w-full btn-violet p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
-        >
-          Авторизация
-        </button>
-      </div>
-
-      <p id="auth-error" class="text-rose-500 text-[10px] font-black uppercase hidden">
+      <p id="auth-error" class="text-red-400 text-xs hidden">
         Неверный логин или пароль
       </p>
     </div>
   </div>
 
-  <!-- Admin Panel -->
-  <div id="admin-panel" class="max-w-7xl mx-auto space-y-8 hidden">
-    <header class="flex justify-between items-center bg-card p-6 rounded-3xl border border-white/5">
-      <h1 class="text-xl font-black uppercase italic">GAME44 ADMIN</h1>
-      <button onclick="logout()" class="text-rose-400 font-black uppercase">
-        Выйти
+  <!-- PANEL -->
+  <div id="admin-panel" class="hidden space-y-6 max-w-xl mx-auto">
+    <h1 class="text-xl font-black uppercase">GAME44 ADMIN</h1>
+
+    <div class="bg-[#120a1a] p-6 rounded-2xl space-y-3">
+      <input id="task-title" placeholder="Название задания"
+        class="w-full p-3 rounded bg-black/40">
+      <input id="task-reward" type="number" placeholder="Награда"
+        class="w-full p-3 rounded bg-black/40">
+
+      <button onclick="createTask()"
+        class="w-full bg-violet-600 p-3 rounded font-black uppercase">
+        Создать задание
       </button>
-    </header>
 
-    <div class="glass p-8 rounded-3xl space-y-4">
-      <h2 class="font-black uppercase">Создать задание</h2>
-
-      <input id="task-title" placeholder="Название" class="w-full p-3 rounded-xl bg-black/30 text-white">
-      <input id="task-reward" type="number" placeholder="Награда" class="w-full p-3 rounded-xl bg-black/30 text-white">
-
-      <button
-        onclick="createTask()"
-        class="bg-violet-600 p-4 rounded-xl font-black uppercase"
-      >
-        Создать
+      <button onclick="logout()"
+        class="w-full bg-red-600 p-3 rounded font-black uppercase">
+        Выйти
       </button>
     </div>
   </div>
 
-  <script type="module" src="./js/admin.js"></script>
+  <!-- SUPABASE CLIENT -->
+  <script>
+    const SUPABASE_URL = 'https://xzzaoniuzvcxqfugvfzh.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_YAn708jttD0b0vAGLPreog_ZnCvFhAH';
+
+    const { createClient } = window.supabase;
+    window.sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+  </script>
+
+  <!-- ADMIN LOGIC -->
+  <script src="./js/admin.js"></script>
 </body>
 </html>
