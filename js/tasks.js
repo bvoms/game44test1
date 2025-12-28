@@ -6,42 +6,30 @@ import { supabase } from './config.js';
 const TG_BOT_TOKEN = '8321050426:AAH4fKadiex7i9NQnC7T2ZyjscRknQgFKlI';
 const TG_CHAT_ID = '-1003693227904';
 
-/* =====================
-   TELEGRAM SEND (CORS SAFE)
-===================== */
 function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
-
   const data = new URLSearchParams({
     chat_id: TG_CHAT_ID,
     text,
     parse_mode: 'Markdown'
   });
 
-  fetch(url, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: data
-  });
+  fetch(url, { method: 'POST', mode: 'no-cors', body: data });
 }
 
 /* =====================
-   AUTO REFRESH
+   STATE
 ===================== */
-setInterval(() => {
-  if (window.player) {
-    loadTasks(window.player);
-  }
-}, 4000);
+let activeInstanceId = null;
+let realtimeChannel = null;
 
 /* =====================
-   LOAD TASKS
+   LOAD TASKS (ONCE)
 ===================== */
 export async function loadTasks(player) {
   const container = document.getElementById('tasks-container');
-  container.innerHTML = 'Загрузка...';
 
-  // Проверяем активное / отправленное задание
+  // 1️⃣ Проверяем активное задание
   const { data: inst } = await supabase
     .from('task_instances')
     .select('*')
@@ -49,56 +37,36 @@ export async function loadTasks(player) {
     .in('status', ['active', 'reported'])
     .maybeSingle();
 
-  // Если задание выполняется
   if (inst) {
-    if (inst.status === 'active') {
-      showActiveTask(inst);
-    } else {
-      container.innerHTML = `
-        <div class="glass p-4 rounded-2xl text-center text-violet-400">
-          Задание отправлено на проверку
-        </div>
-      `;
-    }
+    activeInstanceId = inst.id;
+    subscribeToInstance(inst.id);
+    renderActive(inst);
     return;
   }
 
-  // Грузим доступные задания
+  // 2️⃣ Если активного нет — показываем задания
   const { data: tasks } = await supabase.from('tasks').select('*');
-
-  const available = tasks.filter(t => {
-    const factionOk = !t.faction || t.faction === player.faction;
-    const targetOk = !t.target || t.target === player.tg_id;
-    return factionOk && targetOk;
-  });
-
-  if (available.length === 0) {
-    container.innerHTML = 'Нет доступных заданий';
-    return;
-  }
 
   container.innerHTML = '';
 
-  available.forEach(task => {
-    const el = document.createElement('div');
-    el.className = 'glass p-4 rounded-2xl space-y-2';
-
-    el.innerHTML = `
-      <h3 class="font-black">${task.title}</h3>
-      <p class="text-xs">${task.description || ''}</p>
-      <p class="text-xs text-violet-400">
-        ${task.reward} · ${task.duration_minutes} мин
-      </p>
-      <button
-        class="bg-violet-600 px-4 py-2 rounded-xl text-xs font-black uppercase"
-        onclick="acceptTask('${task.id}', '${task.title}', ${task.duration_minutes})"
-      >
-        Взять
-      </button>
-    `;
-
-    container.appendChild(el);
-  });
+  tasks
+    .filter(t =>
+      (!t.faction || t.faction === player.faction) &&
+      (!t.target || t.target === player.tg_id)
+    )
+    .forEach(task => {
+      const el = document.createElement('div');
+      el.className = 'glass p-4 rounded-2xl space-y-2';
+      el.innerHTML = `
+        <h3 class="font-black">${task.title}</h3>
+        <p class="text-xs">${task.description || ''}</p>
+        <button class="bg-violet-600 px-4 py-2 rounded-xl"
+          onclick="acceptTask('${task.id}', '${task.title}', ${task.duration_minutes})">
+          Взять
+        </button>
+      `;
+      container.appendChild(el);
+    });
 }
 
 /* =====================
@@ -108,7 +76,7 @@ window.acceptTask = async (taskId, title, duration) => {
   const player = window.player;
   const deadline = new Date(Date.now() + duration * 60000).toISOString();
 
-  const { data: inst, error } = await supabase
+  const { data: inst } = await supabase
     .from('task_instances')
     .insert({
       task_id: taskId,
@@ -119,68 +87,73 @@ window.acceptTask = async (taskId, title, duration) => {
     .select()
     .single();
 
-  if (error) {
-    alert('Не удалось взять задание');
-    return;
-  }
+  sendTelegram(`🟣 *ПРИНЯТО*\n👤 ${player.id}\n🎯 ${title}`);
 
-  sendTelegram(
-    `🟣 *ПРИНЯТО*\n` +
-    `👤 ${player.id}\n` +
-    `🎯 ${title}`
-  );
-
-  showActiveTask(inst);
+  activeInstanceId = inst.id;
+  subscribeToInstance(inst.id);
+  renderActive(inst);
 };
 
 /* =====================
-   ACTIVE TASK UI
+   REALTIME SUBSCRIBE
 ===================== */
-function showActiveTask(inst) {
+function subscribeToInstance(id) {
+  if (realtimeChannel) return;
+
+  realtimeChannel = supabase
+    .channel('task-instance')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'task_instances',
+        filter: `id=eq.${id}`
+      },
+      payload => {
+        const status = payload.new.status;
+
+        if (status === 'approved' || status === 'rejected') {
+          activeInstanceId = null;
+          realtimeChannel.unsubscribe();
+          realtimeChannel = null;
+          loadTasks(window.player);
+        }
+      }
+    )
+    .subscribe();
+}
+
+/* =====================
+   RENDER ACTIVE
+===================== */
+function renderActive(inst) {
   const container = document.getElementById('tasks-container');
 
+  if (inst.status === 'reported') {
+    container.innerHTML = `
+      <div class="glass p-4 rounded-2xl text-center">
+        Задание на проверке
+      </div>
+    `;
+    return;
+  }
+
   container.innerHTML = `
-    <div class="glass p-6 rounded-3xl space-y-4 text-center">
-      <h3 class="font-black uppercase">Задание в работе</h3>
-      <div id="task-timer" class="text-2xl font-black"></div>
-      <button
-        class="bg-emerald-600 p-4 rounded-xl font-black uppercase"
-        onclick="reportTask('${inst.id}')"
-      >
+    <div class="glass p-6 rounded-3xl text-center space-y-4">
+      <h3 class="font-black">Задание в работе</h3>
+      <button class="bg-emerald-600 p-4 rounded-xl"
+        onclick="reportTask('${inst.id}')">
         Я выполнил
       </button>
     </div>
   `;
-
-  startTimer(inst.deadline);
 }
 
 /* =====================
-   TIMER
+   REPORT DONE
 ===================== */
-function startTimer(deadline) {
-  function tick() {
-    const diff = new Date(deadline) - new Date();
-
-    if (diff <= 0) {
-      document.getElementById('task-timer').innerText = 'ВРЕМЯ ВЫШЛО';
-      return;
-    }
-
-    const m = Math.floor(diff / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    document.getElementById('task-timer').innerText =
-      `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-
-  tick();
-  setInterval(tick, 1000);
-}
-
-/* =====================
-   REPORT TASK DONE
-===================== */
-window.reportTask = async (instanceId) => {
+window.reportTask = async (id) => {
   const player = window.player;
 
   const { data: inst } = await supabase
@@ -189,15 +162,11 @@ window.reportTask = async (instanceId) => {
       status: 'reported',
       reported_at: new Date().toISOString()
     })
-    .eq('id', instanceId)
+    .eq('id', id)
     .select()
     .single();
 
-  sendTelegram(
-    `📩 *ВЫПОЛНЕНО*\n` +
-    `👤 ${player.id}\n` +
-    `🆔 ${inst.task_id}`
-  );
+  sendTelegram(`📩 *ВЫПОЛНЕНО*\n👤 ${player.id}`);
 
-  loadTasks(player);
+  renderActive(inst);
 };
