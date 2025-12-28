@@ -1,25 +1,22 @@
-// =====================
-// INIT
-// =====================
-document.addEventListener('DOMContentLoaded', () => {
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', async () => {
   if (sessionStorage.getItem('admin_auth') === '1') {
     showPanel();
+    loadUsers();
   }
 });
 
-// =====================
-// AUTH
-// =====================
+// ===== AUTH =====
 function tryLogin() {
-  const login = document.getElementById('auth-login').value.trim();
-  const pass = document.getElementById('auth-pass').value.trim();
-  const error = document.getElementById('auth-error');
+  const l = auth-login.value.trim();
+  const p = auth-pass.value.trim();
 
-  if (login === 'game44' && pass === 'thewanga') {
+  if (l === 'game44' && p === 'thewanga') {
     sessionStorage.setItem('admin_auth', '1');
     showPanel();
+    loadUsers();
   } else {
-    error.classList.remove('hidden');
+    document.getElementById('auth-error').classList.remove('hidden');
   }
 }
 
@@ -28,37 +25,55 @@ function logout() {
   location.reload();
 }
 
-// =====================
-// UI
-// =====================
 function showPanel() {
   document.getElementById('admin-auth').style.display = 'none';
   document.getElementById('admin-panel').classList.remove('hidden');
 }
 
-// =====================
-// TASKS
-// =====================
+// ===== USERS =====
+async function loadUsers() {
+  const select = document.getElementById('task-target');
+  select.innerHTML = `<option value="">Общее задание</option>`;
+
+  const { data: users } = await sb.from('users').select('tg_id, id');
+
+  users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.tg_id;
+    opt.textContent = u.id;
+    select.appendChild(opt);
+  });
+}
+
+// ===== TASKS =====
 async function createTask() {
-  const title = document.getElementById('task-title').value.trim();
-  const reward = parseFloat(document.getElementById('task-reward').value);
+  const title = task-title.value.trim();
+  const description = task-desc.value.trim();
+  const reward = parseFloat(task-reward.value);
+  const faction = task-faction.value || null;
+  const target = task-target.value || null;
 
   if (!title || isNaN(reward)) {
-    alert('Заполните все поля');
+    alert('Заполни обязательные поля');
     return;
   }
 
-  await window.sb.from('tasks').insert({
+  await sb.from('tasks').insert({
     title,
-    reward
+    description,
+    reward,
+    faction,
+    target
   });
 
   alert('Задание создано');
+
+  task-title.value = '';
+  task-desc.value = '';
+  task-reward.value = '';
 }
 
-// =====================
-// EXPOSE
-// =====================
+// ===== EXPOSE =====
 window.tryLogin = tryLogin;
 window.logout = logout;
 window.createTask = createTask;
