@@ -1,20 +1,64 @@
 import { sb } from './config.js';
 
-window.tryLogin = () => {
-  const l = auth-login.value;
-  const p = auth-pass.value;
+// =====================
+// AUTH CHECK ON LOAD
+// =====================
+document.addEventListener('DOMContentLoaded', () => {
+  const isAdmin = sessionStorage.getItem('admin_auth') === '1';
 
-  if (l === 'game44' && p === 'thewanga') {
-    sessionStorage.setItem('admin', '1');
-    location.reload();
+  if (isAdmin) {
+    document.getElementById('admin-auth').style.display = 'none';
+    document.getElementById('admin-panel').classList.remove('hidden');
   }
-};
+});
 
-window.createTask = async () => {
-  const title = task-title.value;
-  const reward = parseFloat(task-reward.value);
+// =====================
+// LOGIN
+// =====================
+function tryLogin() {
+  const loginInput = document.getElementById('auth-login');
+  const passInput = document.getElementById('auth-pass');
+  const errorEl = document.getElementById('auth-error');
 
-  await sb.from('tasks').insert({ title, reward });
-  alert('Создано');
-};
+  const login = loginInput.value.trim();
+  const pass = passInput.value.trim();
+
+  if (login === 'game44' && pass === 'thewanga') {
+    sessionStorage.setItem('admin_auth', '1');
+    location.reload();
+  } else {
+    errorEl.classList.remove('hidden');
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('admin_auth');
+  location.reload();
+}
+
+// =====================
+// TASKS
+// =====================
+async function createTask() {
+  const title = document.getElementById('task-title').value.trim();
+  const reward = parseFloat(document.getElementById('task-reward').value);
+
+  if (!title || isNaN(reward)) {
+    alert('Заполните все поля');
+    return;
+  }
+
+  await sb.from('tasks').insert({
+    title,
+    reward
+  });
+
+  alert('Задание создано');
+}
+
+// =====================
+// EXPOSE TO HTML
+// =====================
 window.tryLogin = tryLogin;
+window.logout = logout;
+window.createTask = createTask;
