@@ -162,7 +162,7 @@ async function loadInstances() {
 // RESOLVE TASK INSTANCE
 // =====================
 async function resolveInstance(instanceId, approve) {
-  // 1️⃣ получаем инстанс
+  // 1️⃣ инстанс
   const { data: inst, error: instErr } = await sb
     .from('task_instances')
     .select('*')
@@ -174,54 +174,57 @@ async function resolveInstance(instanceId, approve) {
     return;
   }
 
+  // 2️⃣ статус
   const newStatus = approve ? 'approved' : 'rejected';
 
-  // 2️⃣ обновляем статус инстанса
   await sb.from('task_instances').update({
     status: newStatus,
     resolved_at: new Date().toISOString()
   }).eq('id', instanceId);
 
-  // 3️⃣ если принято — начисляем награду
+  let reward = 0;
+
+  // 3️⃣ если принято — начисляем
   if (approve) {
-    // получаем награду задания
-    const { data: task, error: taskErr } = await sb
+    const { data: task } = await sb
       .from('tasks')
       .select('reward')
       .eq('id', inst.task_id)
       .single();
 
-    if (taskErr || !task) {
-      alert('Задание не найдено');
-      return;
-    }
+    reward = Number(task.reward || 0);
 
-    // получаем текущий баланс игрока
-    const { data: user, error: userErr } = await sb
+    const { data: user } = await sb
       .from('users')
       .select('balance')
       .eq('tg_id', inst.player_tg_id)
       .single();
 
-    if (userErr || !user) {
-      alert('Игрок не найден');
-      return;
-    }
-
     const newBalance =
-      Number(user.balance || 0) + Number(task.reward || 0);
+      Number(user.balance || 0) + reward;
 
-    // обновляем баланс
     await sb.from('users')
       .update({ balance: newBalance })
       .eq('tg_id', inst.player_tg_id);
   }
 
+  // 4️⃣ TG notify
+  fetch('/tg/task/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      player: inst.player_name,
+      title: inst.task_id,
+      ok: approve,
+      reward
+    })
+  });
+
   loadInstances();
 }
 
 // =====================
-// EXPOSE TO HTML
+// EXPOSE
 // =====================
 window.tryLogin = tryLogin;
 window.logout = logout;
