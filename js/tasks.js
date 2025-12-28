@@ -21,15 +21,14 @@ function sendTelegram(text) {
 ===================== */
 let activeInstance = null;
 let realtimeChannel = null;
-let silentCheckTimer = null;
 
 /* =====================
-   INIT / LOAD
+   LOAD TASKS
 ===================== */
 export async function loadTasks(player) {
   const container = document.getElementById('tasks-container');
 
-  // 🔹 всегда проверяем актуальный инстанс
+  // 1️⃣ активное / на проверке
   const { data: inst } = await supabase
     .from('task_instances')
     .select('*')
@@ -37,21 +36,24 @@ export async function loadTasks(player) {
     .in('status', ['active', 'reported'])
     .maybeSingle();
 
-  // === есть активное / на проверке ===
   if (inst) {
     activeInstance = inst;
     subscribe(inst.id);
     renderActive(inst);
-    startSilentCheck(player);
     return;
   }
 
-  // === если раньше было задание, а теперь нет ===
-  activeInstance = null;
-  stopSilentCheck();
-  unsubscribe();
+  // 2️⃣ ВСЕ задания игрока (история)
+  const { data: history } = await supabase
+    .from('task_instances')
+    .select('task_id')
+    .eq('player_tg_id', player.tg_id);
 
-  // === показываем доступные задания ===
+  const doneTaskIds = new Set(
+    (history || []).map(i => i.task_id)
+  );
+
+  // 3️⃣ доступные задания = tasks MINUS выполненные
   const { data: tasks } = await supabase.from('tasks').select('*');
 
   container.innerHTML = '';
@@ -59,7 +61,8 @@ export async function loadTasks(player) {
   tasks
     .filter(t =>
       (!t.faction || t.faction === player.faction) &&
-      (!t.target || t.target === player.tg_id)
+      (!t.target || t.target === player.tg_id) &&
+      !doneTaskIds.has(t.id) // 🔥 КЛЮЧЕВОЕ
     )
     .forEach(task => {
       const el = document.createElement('div');
@@ -74,6 +77,10 @@ export async function loadTasks(player) {
       `;
       container.appendChild(el);
     });
+
+  if (container.innerHTML === '') {
+    container.innerHTML = 'Нет доступных заданий';
+  }
 }
 
 /* =====================
@@ -99,7 +106,6 @@ window.acceptTask = async (taskId, title, duration) => {
   activeInstance = inst;
   subscribe(inst.id);
   renderActive(inst);
-  startSilentCheck(player);
 };
 
 /* =====================
@@ -119,7 +125,12 @@ function subscribe(id) {
         filter: `id=eq.${id}`
       },
       payload => {
-        if (payload.new.status === 'approved' || payload.new.status === 'rejected') {
+        if (
+          payload.new.status === 'approved' ||
+          payload.new.status === 'rejected'
+        ) {
+          activeInstance = null;
+          unsubscribe();
           loadTasks(window.player);
         }
       }
@@ -135,35 +146,7 @@ function unsubscribe() {
 }
 
 /* =====================
-   SILENT FALLBACK CHECK
-===================== */
-function startSilentCheck(player) {
-  if (silentCheckTimer) return;
-
-  silentCheckTimer = setInterval(async () => {
-    if (!activeInstance) return;
-
-    const { data } = await supabase
-      .from('task_instances')
-      .select('status')
-      .eq('id', activeInstance.id)
-      .single();
-
-    if (data && (data.status === 'approved' || data.status === 'rejected')) {
-      loadTasks(player);
-    }
-  }, 6000);
-}
-
-function stopSilentCheck() {
-  if (silentCheckTimer) {
-    clearInterval(silentCheckTimer);
-    silentCheckTimer = null;
-  }
-}
-
-/* =====================
-   RENDER
+   RENDER ACTIVE
 ===================== */
 function renderActive(inst) {
   const container = document.getElementById('tasks-container');
