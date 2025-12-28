@@ -3,30 +3,41 @@ import { initRocket } from './rocket.js';
 
 window.onload = async () => {
   try {
-    // 1️⃣ Анонимный вход в Supabase (обязательно)
+    // 1️⃣ Supabase anon auth
     await supabase.auth.signInAnonymously();
 
-    // 2️⃣ Получаем Telegram-пользователя
-    const tgUser = tg?.initDataUnsafe?.user;
+    // 2️⃣ Получаем Telegram user (или fallback)
+    let tgUser = tg?.initDataUnsafe?.user;
 
+    // ⛑️ fallback — КРИТИЧНО
     if (!tgUser) {
-      alert('Открой приложение через Telegram');
-      return;
+      tgUser = {
+        id: 'test_' + Math.floor(Math.random() * 99999),
+        username: 'guest'
+      };
+      console.warn('⚠️ Telegram user not found, using fallback');
     }
 
     const tgId = tgUser.id.toString();
     const tag = '@' + (tgUser.username || tgUser.id);
 
-    // 3️⃣ Проверяем, есть ли пользователь в БД
+    // 3️⃣ Проверка пользователя в БД
     const { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('tg_id', tgId)
       .maybeSingle();
 
-    // 4️⃣ ЕСЛИ НЕТ — ПОКАЗЫВАЕМ ВЫБОР 44 / 93
+    // 4️⃣ Если пользователя НЕТ — показываем выбор
     if (!user) {
-      document.getElementById('reg-modal')?.classList.remove('hidden');
+      const modal = document.getElementById('reg-modal');
+      if (!modal) {
+        alert('❌ reg-modal не найден в HTML');
+        return;
+      }
+
+      modal.classList.remove('hidden');
+
       window.completeRegistration = async (faction) => {
         const authUser = await supabase.auth.getUser();
 
@@ -41,33 +52,27 @@ window.onload = async () => {
 
         location.reload();
       };
+
       return;
     }
 
-    // 5️⃣ ЕСЛИ ПОЛЬЗОВАТЕЛЬ ЕСТЬ — ЗАПУСКАЕМ ПРИЛОЖЕНИЕ
+    // 5️⃣ Пользователь есть — запускаем приложение
     initApp(user);
     initRocket();
 
   } catch (e) {
-    console.error('APP INIT ERROR:', e);
-    alert('Ошибка запуска приложения');
+    console.error('❌ APP INIT ERROR:', e);
+    alert('Ошибка запуска приложения, смотри консоль');
   }
 };
 
 // =====================
-// INIT APP UI
+// UI INIT
 // =====================
 function initApp(player) {
-  // фракция
   document.getElementById('ui-faction').innerText = `ИГРОК ${player.faction}`;
-
-  // баланс
   document.getElementById('ui-balance').innerText =
     `${Number(player.balance || 0).toFixed(2)} TON`;
-
   document.getElementById('ui-skulls').innerText =
     `${player.skulls || 0} 💀`;
-
-  // убираем "ЗАГРУЗКА..."
-  document.getElementById('ui-faction').classList.remove('opacity-50');
 }
