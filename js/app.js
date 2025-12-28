@@ -1,6 +1,9 @@
 import { supabase, tg } from './config.js';
 import { initRocket } from './rocket.js';
 
+// =====================
+// APP START
+// =====================
 window.onload = async () => {
   try {
     // ===== TELEGRAM INIT =====
@@ -19,10 +22,10 @@ window.onload = async () => {
     const authId = authData.user.id;
 
     // ===== TELEGRAM USER =====
-    let tgUser = tg?.initDataUnsafe?.user;
+    let tgUser = tg?.initDataUnsafe?.user || null;
 
+    // fallback tg id (для теста вне TG)
     if (!tgUser) {
-      // стабильный fallback (только для теста)
       let storedId = localStorage.getItem('fallback_tg_id');
       if (!storedId) {
         storedId = 'test_' + Math.floor(Math.random() * 999999);
@@ -30,43 +33,43 @@ window.onload = async () => {
       }
 
       tgUser = {
-        id: storedId,
-        first_name: 'Guest'
+        id: storedId
       };
     }
 
     const tgId = tgUser.id.toString();
-    const displayName = (() => {
-  if (tgUser.username && tgUser.username.length > 0) {
-    return '@' + tgUser.username;
-  }
 
-  if (tgUser.first_name && tgUser.last_name) {
-    return `${tgUser.first_name} ${tgUser.last_name}`;
-  }
+    // ===== ИМЯ ИЗ TELEGRAM (ЕСЛИ ПРИШЛО) =====
+    let telegramName = null;
 
-  if (tgUser.first_name) {
-    return tgUser.first_name;
-  }
+    if (tgUser.first_name && tgUser.first_name.trim().length > 0) {
+      telegramName = tgUser.first_name.trim();
+    }
 
-  return `id${tgUser.id}`;
-})();
-
-    // ===== USER CHECK =====
+    // ===== ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ =====
     const { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('tg_id', tgId)
       .maybeSingle();
 
-    // ===== REGISTRATION =====
+    // ===== РЕГИСТРАЦИЯ =====
     if (!user) {
       const modal = document.getElementById('reg-modal');
       modal.classList.remove('hidden');
 
       window.completeRegistration = async (faction) => {
+        // имя, введённое вручную
+        const manualNameInput = document.getElementById('manual-name');
+        const manualName = manualNameInput?.value?.trim();
+
+        const finalName =
+          telegramName ||
+          manualName ||
+          `Игрок ${tgId.slice(-4)}`;
+
         await supabase.from('users').insert({
-          id: displayName,
+          id: finalName,
           tg_id: tgId,
           auth_id: authId,
           faction,
@@ -74,16 +77,16 @@ window.onload = async () => {
           skulls: 0
         });
 
-        // 🔥 ПОЛНОСТЬЮ УБИРАЕМ МОДАЛКУ
+        // полностью убираем модалку
         modal.style.display = 'none';
         modal.style.pointerEvents = 'none';
         document.body.style.overflow = 'auto';
 
         initApp({
+          id: finalName,
           faction,
           balance: 0,
-          skulls: 0,
-          id: displayName
+          skulls: 0
         });
 
         initRocket();
@@ -92,13 +95,13 @@ window.onload = async () => {
       return;
     }
 
-    // ===== USER EXISTS =====
+    // ===== ПОЛЬЗОВАТЕЛЬ СУЩЕСТВУЕТ =====
     initApp(user);
     initRocket();
 
   } catch (e) {
     console.error('❌ APP INIT ERROR:', e);
-    alert('Ошибка запуска приложения, смотри консоль');
+    alert('Ошибка запуска приложения. Смотри консоль.');
   }
 };
 
@@ -109,10 +112,10 @@ function initApp(player) {
   const factionEl = document.getElementById('ui-faction');
   const balanceEl = document.getElementById('ui-balance');
   const skullsEl = document.getElementById('ui-skulls');
+  const profileTagEl = document.getElementById('profile-tag');
 
   if (factionEl) {
     factionEl.innerText = `ИГРОК ${player.faction}`;
-    factionEl.classList.remove('opacity-50');
   }
 
   if (balanceEl) {
@@ -122,15 +125,8 @@ function initApp(player) {
   if (skullsEl) {
     skullsEl.innerText = `${player.skulls || 0} 💀`;
   }
-}
-// =====================
-// EXPOSE FUNCTIONS TO HTML
-// =====================
 
-window.switchTab = switchTab;
-window.handleRocketAction = handleRocketAction;
-window.submitMission = submitMission;
-window.topUp = topUp;
-window.swapToSkulls = swapToSkulls;
-window.saveProfile = saveProfile;
-window.setBet = setBet;
+  if (profileTagEl && player.id) {
+    profileTagEl.innerText = player.id;
+  }
+}
