@@ -1,3 +1,4 @@
+import { loadTasks } from './tasks.js';
 import { supabase, tg } from './config.js';
 import { initRocket } from './rocket.js';
 
@@ -130,3 +131,4 @@ function initApp(player) {
     profileTagEl.innerText = player.id;
   }
 }
+
