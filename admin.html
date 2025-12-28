@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>G44 Admin</title>
+  <title>GAME44 Admin</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -10,61 +10,66 @@
   <link rel="stylesheet" href="./css/admin.css">
 </head>
 
-<body class="p-6 min-h-screen bg-black text-white">
+<body class="bg-black text-white p-6">
 
-  <!-- AUTH -->
-  <div id="admin-auth" class="fixed inset-0 flex items-center justify-center">
-    <div class="bg-[#120a1a] p-8 rounded-3xl w-full max-w-sm space-y-4 text-center">
-      <h1 class="text-2xl font-black uppercase">Admin Login</h1>
+<!-- LOGIN -->
+<div id="admin-auth" class="fixed inset-0 flex items-center justify-center">
+  <div class="bg-[#120a1a] p-8 rounded-3xl w-full max-w-sm space-y-4 text-center">
+    <h1 class="text-2xl font-black uppercase">Admin</h1>
 
-      <input id="auth-login" placeholder="Логин"
-        class="w-full p-4 rounded-xl bg-black/40 text-white text-center">
-      <input id="auth-pass" type="password" placeholder="Пароль"
-        class="w-full p-4 rounded-xl bg-black/40 text-white text-center">
+    <input id="auth-login" placeholder="Логин" class="w-full p-4 rounded bg-black/40 text-center">
+    <input id="auth-pass" type="password" placeholder="Пароль" class="w-full p-4 rounded bg-black/40 text-center">
 
-      <button onclick="tryLogin()"
-        class="w-full bg-violet-600 p-4 rounded-xl font-black uppercase">
-        Войти
-      </button>
+    <button onclick="tryLogin()" class="w-full bg-violet-600 p-4 rounded font-black uppercase">
+      Войти
+    </button>
 
-      <p id="auth-error" class="text-red-400 text-xs hidden">
-        Неверный логин или пароль
-      </p>
-    </div>
+    <p id="auth-error" class="text-red-400 text-xs hidden">Ошибка входа</p>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div id="admin-panel" class="hidden max-w-3xl mx-auto space-y-6">
+
+  <h1 class="text-xl font-black uppercase">Управление заданиями</h1>
+
+  <!-- CREATE TASK -->
+  <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
+
+    <input id="task-title" placeholder="Название задания" class="w-full p-3 rounded bg-black/40">
+    <textarea id="task-desc" placeholder="Описание" class="w-full p-3 rounded bg-black/40"></textarea>
+
+    <input id="task-reward" type="number" placeholder="Награда" class="w-full p-3 rounded bg-black/40">
+
+    <!-- FACTION -->
+    <select id="task-faction" class="w-full p-3 rounded bg-black/40">
+      <option value="">Для всех</option>
+      <option value="44">Только 44</option>
+      <option value="93">Только 93</option>
+    </select>
+
+    <!-- TARGET -->
+    <select id="task-target" class="w-full p-3 rounded bg-black/40">
+      <option value="">Общее задание</option>
+    </select>
+
+    <button onclick="createTask()" class="w-full bg-violet-600 p-4 rounded font-black uppercase">
+      Создать задание
+    </button>
+
   </div>
 
-  <!-- PANEL -->
-  <div id="admin-panel" class="hidden space-y-6 max-w-xl mx-auto">
-    <h1 class="text-xl font-black uppercase">GAME44 ADMIN</h1>
+  <button onclick="logout()" class="text-red-400 uppercase font-black">Выйти</button>
 
-    <div class="bg-[#120a1a] p-6 rounded-2xl space-y-3">
-      <input id="task-title" placeholder="Название задания"
-        class="w-full p-3 rounded bg-black/40">
-      <input id="task-reward" type="number" placeholder="Награда"
-        class="w-full p-3 rounded bg-black/40">
+</div>
 
-      <button onclick="createTask()"
-        class="w-full bg-violet-600 p-3 rounded font-black uppercase">
-        Создать задание
-      </button>
+<!-- SUPABASE -->
+<script>
+  const SUPABASE_URL = 'https://xzzaoniuzvcxqfugvfzh.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_YAn708jttD0b0vAGLPreog_ZnCvFhAH';
+  window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
 
-      <button onclick="logout()"
-        class="w-full bg-red-600 p-3 rounded font-black uppercase">
-        Выйти
-      </button>
-    </div>
-  </div>
-
-  <!-- SUPABASE CLIENT -->
-  <script>
-    const SUPABASE_URL = 'https://xzzaoniuzvcxqfugvfzh.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_YAn708jttD0b0vAGLPreog_ZnCvFhAH';
-
-    const { createClient } = window.supabase;
-    window.sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-  </script>
-
-  <!-- ADMIN LOGIC -->
-  <script src="./js/admin.js"></script>
+<script src="./js/admin.js"></script>
 </body>
 </html>
