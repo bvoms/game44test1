@@ -1,15 +1,47 @@
 import { supabase } from './config.js';
 
-let timerInterval = null;
+/* =====================
+   TELEGRAM CONFIG
+===================== */
+const TG_BOT_TOKEN = '8321050426:AAH4fKadiex7i9NQnC7T2ZyjscRknQgFKlI';
+const TG_CHAT_ID = '-1003693227904';
 
-// =====================
-// LOAD TASKS
-// =====================
+/* =====================
+   TELEGRAM SEND (CORS SAFE)
+===================== */
+function sendTelegram(text) {
+  const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
+
+  const data = new URLSearchParams({
+    chat_id: TG_CHAT_ID,
+    text,
+    parse_mode: 'Markdown'
+  });
+
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: data
+  });
+}
+
+/* =====================
+   AUTO REFRESH
+===================== */
+setInterval(() => {
+  if (window.player) {
+    loadTasks(window.player);
+  }
+}, 4000);
+
+/* =====================
+   LOAD TASKS
+===================== */
 export async function loadTasks(player) {
   const container = document.getElementById('tasks-container');
   container.innerHTML = 'Загрузка...';
 
-  // 1️⃣ ищем незавершённый инстанс
+  // Проверяем активное / отправленное задание
   const { data: inst } = await supabase
     .from('task_instances')
     .select('*')
@@ -17,7 +49,7 @@ export async function loadTasks(player) {
     .in('status', ['active', 'reported'])
     .maybeSingle();
 
-  // === если в работе ===
+  // Если задание выполняется
   if (inst) {
     if (inst.status === 'active') {
       showActiveTask(inst);
@@ -31,7 +63,7 @@ export async function loadTasks(player) {
     return;
   }
 
-  // 2️⃣ грузим доступные задания
+  // Грузим доступные задания
   const { data: tasks } = await supabase.from('tasks').select('*');
 
   const available = tasks.filter(t => {
@@ -69,14 +101,14 @@ export async function loadTasks(player) {
   });
 }
 
-// =====================
-// ACCEPT TASK
-// =====================
+/* =====================
+   ACCEPT TASK
+===================== */
 window.acceptTask = async (taskId, title, duration) => {
   const player = window.player;
   const deadline = new Date(Date.now() + duration * 60000).toISOString();
 
-  const { data: inst } = await supabase
+  const { data: inst, error } = await supabase
     .from('task_instances')
     .insert({
       task_id: taskId,
@@ -87,19 +119,23 @@ window.acceptTask = async (taskId, title, duration) => {
     .select()
     .single();
 
-  // TG notify
-  fetch('/tg/task/accept', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ player: player.id, title })
-  });
+  if (error) {
+    alert('Не удалось взять задание');
+    return;
+  }
+
+  sendTelegram(
+    `🟣 *ПРИНЯТО*\n` +
+    `👤 ${player.id}\n` +
+    `🎯 ${title}`
+  );
 
   showActiveTask(inst);
 };
 
-// =====================
-// ACTIVE TASK
-// =====================
+/* =====================
+   ACTIVE TASK UI
+===================== */
 function showActiveTask(inst) {
   const container = document.getElementById('tasks-container');
 
@@ -119,17 +155,14 @@ function showActiveTask(inst) {
   startTimer(inst.deadline);
 }
 
-// =====================
-// TIMER
-// =====================
+/* =====================
+   TIMER
+===================== */
 function startTimer(deadline) {
-  clearInterval(timerInterval);
-
-  timerInterval = setInterval(() => {
+  function tick() {
     const diff = new Date(deadline) - new Date();
 
     if (diff <= 0) {
-      clearInterval(timerInterval);
       document.getElementById('task-timer').innerText = 'ВРЕМЯ ВЫШЛО';
       return;
     }
@@ -138,12 +171,15 @@ function startTimer(deadline) {
     const s = Math.floor((diff % 60000) / 1000);
     document.getElementById('task-timer').innerText =
       `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }, 1000);
+  }
+
+  tick();
+  setInterval(tick, 1000);
 }
 
-// =====================
-// REPORT DONE
-// =====================
+/* =====================
+   REPORT TASK DONE
+===================== */
 window.reportTask = async (instanceId) => {
   const player = window.player;
 
@@ -157,12 +193,11 @@ window.reportTask = async (instanceId) => {
     .select()
     .single();
 
-  // TG notify
-  fetch('/tg/task/report', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ player: player.id, title: inst.task_id })
-  });
+  sendTelegram(
+    `📩 *ВЫПОЛНЕНО*\n` +
+    `👤 ${player.id}\n` +
+    `🆔 ${inst.task_id}`
+  );
 
-  loadTasks(player); // 🔥 обновляем UI → задание исчезает
+  loadTasks(player);
 };
