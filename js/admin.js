@@ -17,3 +17,4 @@ window.createTask = async () => {
   await sb.from('tasks').insert({ title, reward });
   alert('Создано');
 };
+window.tryLogin = tryLogin;
