@@ -1,37 +1,38 @@
-// js/tasks.js
 import { supabase } from './config.js';
 
-let currentInstance = null;
 let timerInterval = null;
 
+// =====================
+// LOAD TASKS
+// =====================
 export async function loadTasks(player) {
   const container = document.getElementById('tasks-container');
-  container.innerHTML = 'Загрузка заданий...';
+  container.innerHTML = 'Загрузка...';
 
-  // 1️⃣ проверяем, нет ли уже активного задания
-  const { data: active } = await supabase
+  // 1️⃣ ищем незавершённый инстанс
+  const { data: inst } = await supabase
     .from('task_instances')
     .select('*')
     .eq('player_tg_id', player.tg_id)
-    .eq('status', 'active')
+    .in('status', ['active', 'reported'])
     .maybeSingle();
 
-  if (active) {
-    showActiveTask(active);
+  // === если в работе ===
+  if (inst) {
+    if (inst.status === 'active') {
+      showActiveTask(inst);
+    } else {
+      container.innerHTML = `
+        <div class="glass p-4 rounded-2xl text-center text-violet-400">
+          Задание отправлено на проверку
+        </div>
+      `;
+    }
     return;
   }
 
   // 2️⃣ грузим доступные задания
-  const { data: tasks, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error(error);
-    container.innerHTML = 'Ошибка загрузки заданий';
-    return;
-  }
+  const { data: tasks } = await supabase.from('tasks').select('*');
 
   const available = tasks.filter(t => {
     const factionOk = !t.faction || t.faction === player.faction;
@@ -54,11 +55,11 @@ export async function loadTasks(player) {
       <h3 class="font-black">${task.title}</h3>
       <p class="text-xs">${task.description || ''}</p>
       <p class="text-xs text-violet-400">
-        Награда: ${task.reward} · ${task.duration_minutes} мин
+        ${task.reward} · ${task.duration_minutes} мин
       </p>
       <button
         class="bg-violet-600 px-4 py-2 rounded-xl text-xs font-black uppercase"
-        onclick="acceptTask('${task.id}', ${task.duration_minutes})"
+        onclick="acceptTask('${task.id}', '${task.title}', ${task.duration_minutes})"
       >
         Взять
       </button>
@@ -69,14 +70,13 @@ export async function loadTasks(player) {
 }
 
 // =====================
-// TAKE TASK
+// ACCEPT TASK
 // =====================
-window.acceptTask = async (taskId, durationMinutes) => {
+window.acceptTask = async (taskId, title, duration) => {
   const player = window.player;
+  const deadline = new Date(Date.now() + duration * 60000).toISOString();
 
-  const deadline = new Date(Date.now() + durationMinutes * 60000).toISOString();
-
-  const { data, error } = await supabase
+  const { data: inst } = await supabase
     .from('task_instances')
     .insert({
       task_id: taskId,
@@ -87,38 +87,36 @@ window.acceptTask = async (taskId, durationMinutes) => {
     .select()
     .single();
 
-  if (error) {
-    alert('Не удалось взять задание');
-    console.error(error);
-    return;
-  }
+  // TG notify
+  fetch('/tg/task/accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player: player.id, title })
+  });
 
-  showActiveTask(data);
+  showActiveTask(inst);
 };
 
 // =====================
-// ACTIVE TASK UI
+// ACTIVE TASK
 // =====================
-function showActiveTask(instance) {
-  currentInstance = instance;
-
+function showActiveTask(inst) {
   const container = document.getElementById('tasks-container');
-  container.innerHTML = `
-    <div class="glass p-6 rounded-3xl space-y-4">
-      <h3 class="text-lg font-black uppercase">Задание в работе</h3>
-      <p class="text-xs text-violet-300">Осталось времени:</p>
-      <div id="task-timer" class="text-2xl font-black">--:--</div>
 
+  container.innerHTML = `
+    <div class="glass p-6 rounded-3xl space-y-4 text-center">
+      <h3 class="font-black uppercase">Задание в работе</h3>
+      <div id="task-timer" class="text-2xl font-black"></div>
       <button
         class="bg-emerald-600 p-4 rounded-xl font-black uppercase"
-        onclick="reportTaskDone()"
+        onclick="reportTask('${inst.id}')"
       >
         Я выполнил
       </button>
     </div>
   `;
 
-  startTimer(instance.deadline);
+  startTimer(inst.deadline);
 }
 
 // =====================
@@ -127,7 +125,7 @@ function showActiveTask(instance) {
 function startTimer(deadline) {
   clearInterval(timerInterval);
 
-  function tick() {
+  timerInterval = setInterval(() => {
     const diff = new Date(deadline) - new Date();
 
     if (diff <= 0) {
@@ -136,29 +134,35 @@ function startTimer(deadline) {
       return;
     }
 
-    const min = Math.floor(diff / 60000);
-    const sec = Math.floor((diff % 60000) / 1000);
+    const m = Math.floor(diff / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
     document.getElementById('task-timer').innerText =
-      `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  }
-
-  tick();
-  timerInterval = setInterval(tick, 1000);
+      `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }, 1000);
 }
 
 // =====================
 // REPORT DONE
 // =====================
-window.reportTaskDone = async () => {
-  if (!currentInstance) return;
+window.reportTask = async (instanceId) => {
+  const player = window.player;
 
-  await supabase
+  const { data: inst } = await supabase
     .from('task_instances')
     .update({
       status: 'reported',
       reported_at: new Date().toISOString()
     })
-    .eq('id', currentInstance.id);
+    .eq('id', instanceId)
+    .select()
+    .single();
 
-  alert('Отчёт отправлен администратору');
+  // TG notify
+  fetch('/tg/task/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player: player.id, title: inst.task_id })
+  });
+
+  loadTasks(player); // 🔥 обновляем UI → задание исчезает
 };
