@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GAME44 HUB</title>
+
+  <!-- Telegram -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Lottie -->
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="./css/main.css">
+</head>
+
+<body class="min-h-screen pb-24">
+
+    <!-- Header -->
+    <header class="p-4 glass sticky top-0 z-50 flex justify-between items-center border-b border-purple-500/20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-violet-600 border border-violet-400/30 overflow-hidden shadow-lg">
+                <img src="" id="header-img" class="w-full h-full object-cover hidden">
+                <div id="header-placeholder" class="w-full h-full flex items-center justify-center font-black">G</div>
+            </div>
+            <div>
+                <h1 class="text-[10px] font-black uppercase tracking-widest text-violet-300">GAME44 <span class="text-white">HUB</span></h1>
+                <p id="ui-faction" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-900/50 mt-1 uppercase border border-violet-500/30 italic">Загрузка...</p>
+            </div>
+        </div>
+        <div class="text-right">
+            <p id="ui-balance" class="text-[11px] text-purple-400 font-black">0.00 TON</p>
+            <p id="ui-skulls" class="text-[11px] text-rose-400 font-black">0 💀</p>
+        </div>
+    </header>
+
+    <!-- VIEWS -->
+    <main id="view-tasks" class="app-view max-w-md mx-auto p-4 space-y-6">
+        <div id="active-zone" class="hidden">
+            <div class="glass p-6 rounded-3xl purple-glow space-y-4 bg-gradient-to-br from-violet-900/20 to-transparent">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-black text-violet-400 uppercase flex items-center gap-2">
+                        <span class="w-2 h-2 bg-violet-500 rounded-full animate-pulse"></span> В процессе
+                    </span>
+                    <span id="active-timer" class="font-mono text-xl font-black text-violet-100">00:00:00</span>
+                </div>
+                <h3 id="active-title" class="text-xl font-black uppercase italic"></h3>
+                <p id="active-desc" class="text-xs text-slate-300 bg-black/20 p-3 rounded-xl border border-white/5"></p>
+                <div class="flex justify-between items-center pt-4 border-t border-purple-500/10">
+                    <span id="active-reward" class="text-violet-300 font-black text-lg"></span>
+                    <button onclick="submitMission()" class="bg-violet-600 text-white text-[10px] font-black px-6 py-3 rounded-xl uppercase shadow-lg active:scale-95 transition-all">Завершить</button>
+                </div>
+            </div>
+        </div>
+        <div class="space-y-4">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-violet-400/70 italic">Доступные задания</h2>
+            <div id="tasks-container" class="space-y-3"></div>
+        </div>
+    </main>
+
+    <main id="view-rocket" class="app-view max-w-md mx-auto p-4 hidden space-y-4">
+        <!-- History -->
+        <div id="rocket-history" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar"></div>
+
+        <div class="glass rounded-[2rem] p-6 rocket-bg border-violet-500/30 text-center space-y-6 relative overflow-hidden shadow-2xl">
+            <div class="h-44 flex items-end justify-center pb-4 relative">
+                <div id="rocket-container">
+                    <lottie-player id="rocket-obj-lottie" src="" background="transparent" speed="1" loop autoplay class="hidden"></lottie-player>
+                    <img id="rocket-obj-img" src="" class="hidden">
+                </div>
+                <div id="rocket-multiplier" class="absolute top-0 text-5xl font-black italic tracking-tighter text-white">1.00x</div>
+                <div id="rocket-status-text" class="absolute top-16 text-xs font-black uppercase tracking-[0.3em]"></div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex gap-2">
+                    <input type="number" id="bet-amount" placeholder="Ставка TON" class="flex-1 bg-black/40 border border-violet-500/30 rounded-xl p-4 text-center font-black outline-none text-white focus:border-violet-500 transition-all">
+                    <button onclick="setBet(0.1)" class="bg-white/5 px-4 py-1 rounded text-[10px] font-bold border border-white/10 active:scale-95">0.1</button>
+                    <button onclick="setBet(0.5)" class="bg-white/5 px-4 py-1 rounded text-[10px] font-bold border border-white/10 active:scale-95">0.5</button>
+                </div>
+                <button id="rocket-main-btn" onclick="handleRocketAction()" class="w-full bg-violet-600 p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all hover:bg-violet-500">Взлёт</button>
+                <p id="rocket-potential" class="text-[10px] font-black text-emerald-400 uppercase hidden">Прибыль: +0.00 TON</p>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <h3 class="text-[9px] font-black uppercase tracking-widest text-violet-400/60 ml-2">Ставки игроков</h3>
+            <div id="live-bets" class="space-y-2"></div>
+        </div>
+    </main>
+
+    <main id="view-bank" class="app-view max-w-md mx-auto p-4 hidden space-y-6">
+        <div class="glass rounded-3xl p-6 space-y-6">
+            <h2 class="text-xl font-black uppercase italic">Банк</h2>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="topUp('TON')" class="bg-violet-600 p-4 rounded-2xl text-center active:scale-95 transition-all shadow-lg"><p class="font-black">TON</p></button>
+                <button onclick="topUp('Stars')" class="bg-amber-500 p-4 rounded-2xl text-center text-black active:scale-95 transition-all shadow-lg"><p class="font-black">STARS</p></button>
+            </div>
+            <div class="bg-black/40 p-6 rounded-2xl border border-white/5 space-y-4">
+                <p class="text-xs font-black uppercase text-violet-400">Обмен 1 TON = 100 💀</p>
+                <input type="number" id="swap-amount" placeholder="Кол-во TON" class="w-full bg-white/5 p-4 rounded-xl outline-none font-black text-center text-white border border-white/10">
+                <button onclick="swapToSkulls()" class="w-full bg-rose-600 p-4 rounded-xl font-black uppercase shadow-lg active:scale-95 transition-all">Обменять на Черепа</button>
+            </div>
+        </div>
+    </main>
+
+    <main id="view-market" class="app-view max-w-md mx-auto p-4 hidden space-y-6">
+        <h2 class="text-xl font-black uppercase italic px-2">Маркет</h2>
+        <div id="market-items" class="grid grid-cols-2 gap-4"></div>
+    </main>
+
+    <main id="view-profile" class="app-view max-w-md mx-auto p-4 hidden space-y-6">
+        <div class="glass rounded-[2rem] p-8 text-center space-y-4 shadow-2xl">
+            <div class="w-20 h-20 mx-auto rounded-3xl bg-violet-600 border-2 border-violet-400/30 overflow-hidden shadow-2xl relative">
+                <img src="" id="profile-img" class="w-full h-full object-cover hidden">
+                <div id="profile-placeholder" class="w-full h-full flex items-center justify-center text-3xl font-black">?</div>
+            </div>
+            <h2 id="profile-tag" class="text-xl font-black text-white">@user</h2>
+            <div class="grid grid-cols-2 gap-3 text-center">
+                <div class="bg-white/5 p-3 rounded-2xl"><p class="text-[8px] uppercase font-bold text-violet-400">Баланс</p><p id="profile-balance" class="font-black text-white">0</p></div>
+                <div class="bg-white/5 p-3 rounded-2xl"><p class="text-[8px] uppercase font-bold text-rose-400">Черепа</p><p id="profile-skulls" class="font-black text-white">0</p></div>
+            </div>
+            <div id="profile-edit" class="space-y-3 pt-4 border-t border-white/5">
+                <input type="text" id="edit-avatar" placeholder="URL аватарки" class="w-full bg-white/5 p-3 rounded-xl text-xs outline-none text-white border border-white/5">
+                <input type="text" id="edit-stream" placeholder="Ссылка на канал (t.me/...)" class="w-full bg-white/5 p-3 rounded-xl text-xs outline-none text-white border border-white/5">
+                <textarea id="edit-bio" placeholder="О себе..." class="w-full bg-white/5 p-3 rounded-xl text-xs h-20 outline-none text-white border border-white/5"></textarea>
+                <button onclick="saveProfile()" class="w-full bg-violet-600 p-4 rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">Сохранить данные</button>
+            </div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 glass border-t border-purple-500/20 px-2 py-4 flex justify-between items-center z-50">
+        <button onclick="switchTab('tasks')" class="nav-btn flex-1 text-violet-400/50" id="nav-tasks"><i class="fas fa-list-check text-lg"></i></button>
+        <button onclick="switchTab('rocket')" class="nav-btn flex-1 text-violet-400/50" id="nav-rocket"><i class="fas fa-rocket text-lg"></i></button>
+        <button onclick="switchTab('bank')" class="nav-btn flex-1 text-violet-400/50" id="nav-bank"><i class="fas fa-university text-lg"></i></button>
+        <button onclick="switchTab('market')" class="nav-btn flex-1 text-violet-400/50" id="nav-market"><i class="fas fa-gift text-lg"></i></button>
+        <button onclick="switchTab('profile')" class="nav-btn flex-1 text-violet-400/50" id="nav-profile"><i class="fas fa-user text-lg"></i></button>
+    </nav>
+
+    <div id="reg-modal" class="fixed inset-0 bg-[#0f0716] z-[100] flex items-center justify-center p-6 hidden">
+        <div class="w-full max-w-xs space-y-6 text-center">
+            <h2 class="text-2xl font-black italic text-violet-100 uppercase">Регистрация</h2>
+            <div class="grid grid-cols-1 gap-4">
+                <button onclick="completeRegistration('44')" class="p-6 rounded-3xl border-2 border-violet-500/30 bg-violet-900/10 active:scale-95 transition-all"><div class="text-xl font-black text-white">ИГРОК 44</div><div class="text-[8px] uppercase tracking-widest text-violet-400">Интернет</div></button>
+                <button onclick="completeRegistration('93')" class="p-6 rounded-3xl border-2 border-emerald-500/30 bg-emerald-900/10 active:scale-95 transition-all"><div class="text-xl font-black text-white">ИГРОК 93</div><div class="text-[8px] uppercase tracking-widest text-emerald-400">Реальная жизнь</div></button>
+            </div>
+        </div>
+    </div>
+
+     <script type="module" src="./js/app.js"></script>
+</body>
+</html>

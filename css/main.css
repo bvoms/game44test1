@@ -1,0 +1,99 @@
+:root {
+  --p-color: #8b5cf6;
+  --s-color: #a78bfa;
+}
+
+body {
+  background: #0f0716;
+  color: #f8fafc;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Glass UI */
+.glass {
+  background: rgba(30, 15, 50, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.purple-glow {
+  border: 1px solid var(--p-color);
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.2);
+}
+
+.rocket-bg {
+  background: radial-gradient(circle at top, #1e0f32 0%, #0f0716 100%);
+}
+
+.nav-active {
+  color: #a78bfa;
+  transform: translateY(-4px);
+  text-shadow: 0 0 10px #8b5cf6;
+}
+
+/* Rocket animation */
+@keyframes rocket-shake {
+  0%, 100% { transform: translate(0, 5px) rotate(0deg); }
+  25% { transform: translate(1px, 4px) rotate(0.5deg); }
+  50% { transform: translate(-1px, 6px) rotate(-0.5deg); }
+}
+
+.animate-rocket {
+  animation: rocket-shake 0.1s infinite;
+}
+
+#rocket-container {
+  width: 100px;
+  height: 100px;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s linear;
+}
+
+#rocket-obj-img,
+#rocket-obj-lottie {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Buttons (generic) */
+.btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  font-weight: 900;
+  border-radius: 1rem;
+  padding: 0.75rem 1.25rem;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  transition: all 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+/* Inputs */
+input,
+textarea,
+select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  outline: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #8b5cf6;
+}

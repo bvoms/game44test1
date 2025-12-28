@@ -1,0 +1,60 @@
+body {
+  background: #07030a;
+  color: #f8fafc;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Glass */
+.glass {
+  background: rgba(18, 10, 30, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.neon-border {
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
+}
+
+.bg-card {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Buttons */
+.btn-violet {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  transition: all 0.15s ease;
+}
+
+.btn-violet:hover {
+  filter: brightness(1.1);
+}
+
+.btn-violet:active {
+  transform: scale(0.95);
+}
+
+/* Inputs */
+input,
+textarea,
+select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  outline: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #8b5cf6;
+}
+
+/* Scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
