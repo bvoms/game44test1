@@ -12,122 +12,75 @@
 </head>
 
 <body class="p-6 min-h-screen">
-    <!-- Login Screen -->
-    <div id="admin-auth" class="fixed inset-0 bg-[#07030a] z-[1000] flex items-center justify-center p-6">
-        <div class="w-full max-w-sm glass neon-border p-10 rounded-[3rem] space-y-8 text-center">
-            <div class="w-20 h-20 bg-violet-600 rounded-3xl mx-auto flex items-center justify-center shadow-2xl">
-                <i class="fas fa-shield-halved text-3xl text-white"></i>
-            </div>
-            <div>
-                <h1 class="text-3xl font-black italic uppercase tracking-tighter text-white">G44 <span class="text-violet-500">CONTROL</span></h1>
-                <p class="text-xs text-violet-400/60 uppercase font-bold tracking-widest mt-2">Введите уровень доступа</p>
-            </div>
-            <div class="space-y-4">
-                <input type="text" id="auth-login" placeholder="Логин" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none text-white font-bold text-center focus:border-violet-500 transition-all">
-                <input type="password" id="auth-pass" placeholder="Пароль" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none text-white font-bold text-center focus:border-violet-500 transition-all">
-                <button onclick="tryLogin()" class="w-full btn-violet p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl hover:brightness-110 active:scale-95 transition-all">Авторизация</button>
-            </div>
-            <p id="auth-error" class="text-rose-500 text-[10px] font-black uppercase hidden">Код доступа неверен</p>
-        </div>
+
+  <!-- Login Screen -->
+  <div id="admin-auth" class="fixed inset-0 bg-[#07030a] z-[1000] flex items-center justify-center p-6">
+    <div class="w-full max-w-sm glass neon-border p-10 rounded-[3rem] space-y-8 text-center">
+      <div class="w-20 h-20 bg-violet-600 rounded-3xl mx-auto flex items-center justify-center shadow-2xl">
+        <i class="fas fa-shield-halved text-3xl text-white"></i>
+      </div>
+
+      <div>
+        <h1 class="text-3xl font-black italic uppercase tracking-tighter text-white">
+          G44 <span class="text-violet-500">CONTROL</span>
+        </h1>
+        <p class="text-xs text-violet-400/60 uppercase font-bold tracking-widest mt-2">
+          Введите уровень доступа
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        <input
+          type="text"
+          id="auth-login"
+          placeholder="Логин"
+          class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none text-white font-bold text-center"
+        >
+        <input
+          type="password"
+          id="auth-pass"
+          placeholder="Пароль"
+          class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none text-white font-bold text-center"
+        >
+
+        <button
+          onclick="tryLogin()"
+          class="w-full btn-violet p-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+        >
+          Авторизация
+        </button>
+      </div>
+
+      <p id="auth-error" class="text-rose-500 text-[10px] font-black uppercase hidden">
+        Неверный логин или пароль
+      </p>
     </div>
+  </div>
 
-    <!-- Admin Panel -->
-    <div id="admin-panel" class="max-w-7xl mx-auto space-y-8 hidden">
-        <header class="flex justify-between items-center bg-card p-6 rounded-3xl border border-white/5">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <i class="fas fa-terminal text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-black uppercase italic tracking-tighter">GAME44 <span class="text-violet-500">OPERATIONS</span></h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span class="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Система активна</span>
-                    </div>
-                </div>
-            </div>
-            <button onclick="logout()" class="text-[10px] font-black uppercase text-rose-500 border border-rose-500/20 px-6 py-3 rounded-2xl hover:bg-rose-500/10 transition-all flex items-center gap-2">
-                <i class="fas fa-power-off"></i> Выйти
-            </button>
-        </header>
+  <!-- Admin Panel -->
+  <div id="admin-panel" class="max-w-7xl mx-auto space-y-8 hidden">
+    <header class="flex justify-between items-center bg-card p-6 rounded-3xl border border-white/5">
+      <h1 class="text-xl font-black uppercase italic">GAME44 ADMIN</h1>
+      <button onclick="logout()" class="text-rose-400 font-black uppercase">
+        Выйти
+      </button>
+    </header>
 
-        <div class="grid lg:grid-cols-12 gap-8">
-            <!-- Sidebar: Create Task -->
-            <div class="lg:col-span-4 space-y-6">
-                <div class="glass neon-border p-8 rounded-[2.5rem] space-y-6">
-                    <h2 class="text-xs font-black uppercase text-violet-400 flex items-center gap-2">
-                        <i class="fas fa-plus-circle"></i> Новая директива
-                    </h2>
-                    <div class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="text-[9px] uppercase font-black text-white/40 ml-2">Сторона</label>
-                            <select id="task-faction" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-xs text-white outline-none focus:border-violet-500">
-                                <option value="44">Игрок 44 (Интернет)</option>
-                                <option value="93">Игрок 93 (Реал)</option>
-                            </select>
-                        </div>
-                        <div class="space-y-1.5">
-                            <label class="text-[9px] uppercase font-black text-white/40 ml-2">Цель (@тег)</label>
-                            <input id="task-target" placeholder="Все игроки" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-xs text-white outline-none focus:border-violet-500">
-                        </div>
-                        <div class="space-y-1.5">
-                            <label class="text-[9px] uppercase font-black text-white/40 ml-2">Заголовок задания</label>
-                            <input id="task-title" placeholder="Введите название..." class="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-xs text-white font-bold outline-none focus:border-violet-500">
-                        </div>
-                        <div class="space-y-1.5">
-                            <label class="text-[9px] uppercase font-black text-white/40 ml-2">Инструкции</label>
-                            <textarea id="task-desc" placeholder="Детальное описание..." class="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-xs h-28 text-white outline-none focus:border-violet-500"></textarea>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-1.5">
-                                <label class="text-[9px] uppercase font-black text-white/40 ml-2">Награда (TON)</label>
-                                <input type="number" id="task-reward" placeholder="0.0" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-xs text-white outline-none focus:border-violet-500">
-                            </div>
-                            <div class="space-y-1.5">
-                                <label class="text-[9px] uppercase font-black text-white/40 ml-2">Срок (час)</label>
-                                <input type="number" id="task-duration" value="2" class="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-xs text-white outline-none focus:border-violet-500">
-                            </div>
-                        </div>
-                        <button onclick="createTask()" class="w-full btn-violet p-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg hover:brightness-110 transition-all mt-4">
-                            Запустить задание
-                        </button>
-                    </div>
-                </div>
-            </div>
+    <div class="glass p-8 rounded-3xl space-y-4">
+      <h2 class="font-black uppercase">Создать задание</h2>
 
-            <!-- Main: Lists -->
-            <div class="lg:col-span-8 space-y-8">
-                <div class="grid md:grid-cols-2 gap-8">
-                    <!-- Reports -->
-                    <section class="space-y-4">
-                        <div class="flex justify-between items-center px-4">
-                            <h2 class="text-[10px] font-black uppercase text-rose-400 tracking-widest flex items-center gap-2">
-                                <i class="fas fa-clipboard-check"></i> На проверку
-                            </h2>
-                            <span id="reports-count" class="bg-rose-500/20 text-rose-400 text-[9px] font-black px-2 py-0.5 rounded-full">0</span>
-                        </div>
-                        <div id="pending-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-2 no-scrollbar">
-                            <!-- Items -->
-                        </div>
-                    </section>
+      <input id="task-title" placeholder="Название" class="w-full p-3 rounded-xl bg-black/30 text-white">
+      <input id="task-reward" type="number" placeholder="Награда" class="w-full p-3 rounded-xl bg-black/30 text-white">
 
-                    <!-- Gifts -->
-                    <section class="space-y-4">
-                        <div class="flex justify-between items-center px-4">
-                            <h2 class="text-[10px] font-black uppercase text-amber-400 tracking-widest flex items-center gap-2">
-                                <i class="fas fa-box-open"></i> Заказы Маркета
-                            </h2>
-                            <span id="gifts-count" class="bg-amber-500/20 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded-full">0</span>
-                        </div>
-                        <div id="gift-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-2 no-scrollbar">
-                            <!-- Items -->
-                        </div>
-                    </section>
-                </div>
-            </div>
-        </div>
+      <button
+        onclick="createTask()"
+        class="bg-violet-600 p-4 rounded-xl font-black uppercase"
+      >
+        Создать
+      </button>
     </div>
+  </div>
 
-    <script type="module" src="./js/admin.js"></script>
+  <script type="module" src="./js/admin.js"></script>
 </body>
 </html>
