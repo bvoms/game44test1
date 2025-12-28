@@ -6,36 +6,36 @@ window.onload = async () => {
     // 1️⃣ Supabase anon auth
     await supabase.auth.signInAnonymously();
 
-    // 2️⃣ Получаем Telegram user (или fallback)
+    // 2️⃣ Telegram user или стабильный fallback
     let tgUser = tg?.initDataUnsafe?.user;
 
-    // ⛑️ fallback — КРИТИЧНО
     if (!tgUser) {
+      // ⛑️ СТАБИЛЬНЫЙ fallback
+      let storedId = localStorage.getItem('fallback_tg_id');
+      if (!storedId) {
+        storedId = 'test_' + Math.floor(Math.random() * 999999);
+        localStorage.setItem('fallback_tg_id', storedId);
+      }
+
       tgUser = {
-        id: 'test_' + Math.floor(Math.random() * 99999),
+        id: storedId,
         username: 'guest'
       };
-      console.warn('⚠️ Telegram user not found, using fallback');
     }
 
     const tgId = tgUser.id.toString();
     const tag = '@' + (tgUser.username || tgUser.id);
 
-    // 3️⃣ Проверка пользователя в БД
+    // 3️⃣ Проверка пользователя
     const { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('tg_id', tgId)
       .maybeSingle();
 
-    // 4️⃣ Если пользователя НЕТ — показываем выбор
+    // 4️⃣ Регистрация
     if (!user) {
       const modal = document.getElementById('reg-modal');
-      if (!modal) {
-        alert('❌ reg-modal не найден в HTML');
-        return;
-      }
-
       modal.classList.remove('hidden');
 
       window.completeRegistration = async (faction) => {
@@ -50,19 +50,26 @@ window.onload = async () => {
           skulls: 0
         });
 
-        location.reload();
+        // ❌ НЕ reload
+        modal.classList.add('hidden');
+        initApp({
+          faction,
+          balance: 0,
+          skulls: 0
+        });
+        initRocket();
       };
 
       return;
     }
 
-    // 5️⃣ Пользователь есть — запускаем приложение
+    // 5️⃣ Пользователь существует
     initApp(user);
     initRocket();
 
   } catch (e) {
     console.error('❌ APP INIT ERROR:', e);
-    alert('Ошибка запуска приложения, смотри консоль');
+    alert('Ошибка запуска приложения');
   }
 };
 
@@ -70,9 +77,12 @@ window.onload = async () => {
 // UI INIT
 // =====================
 function initApp(player) {
-  document.getElementById('ui-faction').innerText = `ИГРОК ${player.faction}`;
+  document.getElementById('ui-faction').innerText =
+    `ИГРОК ${player.faction}`;
+
   document.getElementById('ui-balance').innerText =
     `${Number(player.balance || 0).toFixed(2)} TON`;
+
   document.getElementById('ui-skulls').innerText =
     `${player.skulls || 0} 💀`;
 }
