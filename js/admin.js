@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (sessionStorage.getItem('admin_auth') === '1') {
     showPanel();
     loadUsers();
+    loadInstances();
   }
 });
 
@@ -12,19 +13,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 // AUTH
 // =====================
 function tryLogin() {
-  const loginInput = document.getElementById('auth-login');
-  const passInput = document.getElementById('auth-pass');
-  const errorEl = document.getElementById('auth-error');
-
-  const login = loginInput.value.trim();
-  const pass = passInput.value.trim();
+  const login = document.getElementById('auth-login').value.trim();
+  const pass = document.getElementById('auth-pass').value.trim();
+  const error = document.getElementById('auth-error');
 
   if (login === 'game44' && pass === 'thewanga') {
     sessionStorage.setItem('admin_auth', '1');
     showPanel();
     loadUsers();
+    loadInstances();
   } else {
-    errorEl.classList.remove('hidden');
+    error.classList.remove('hidden');
   }
 }
 
@@ -45,30 +44,22 @@ async function loadUsers() {
   const select = document.getElementById('task-target');
   select.innerHTML = `<option value="">Общее задание</option>`;
 
-  const { data: users, error } = await sb
-    .from('users')
-    .select('tg_id, id');
+  const { data } = await sb.from('users').select('tg_id, id');
 
-  if (error) {
-    console.error(error);
-    alert('Ошибка загрузки пользователей');
-    return;
-  }
-
-  users.forEach(user => {
+  data.forEach(u => {
     const opt = document.createElement('option');
-    opt.value = user.tg_id;
-    opt.textContent = user.id;
+    opt.value = u.tg_id;
+    opt.textContent = u.id;
     select.appendChild(opt);
   });
 }
 
 // =====================
-// TASKS
+// CREATE TASK
 // =====================
 async function createTask() {
   const title = document.getElementById('task-title').value.trim();
-  const description = document.getElementById('task-desc').value.trim();
+  const desc = document.getElementById('task-desc').value.trim();
   const reward = parseFloat(document.getElementById('task-reward').value);
   const faction = document.getElementById('task-faction').value || null;
   const target = document.getElementById('task-target').value || null;
@@ -78,25 +69,103 @@ async function createTask() {
     return;
   }
 
-  const { error } = await sb.from('tasks').insert({
+  await sb.from('tasks').insert({
     title,
-    description,
+    description: desc,
     reward,
     faction,
     target
   });
 
+  alert('Задание создано');
+}
+
+// =====================
+// LOAD INSTANCES
+// =====================
+async function loadInstances() {
+  const container = document.getElementById('instances-container');
+  container.innerHTML = 'Загрузка...';
+
+  const { data, error } = await sb
+    .from('task_instances')
+    .select('*')
+    .order('started_at', { ascending: false });
+
   if (error) {
-    console.error(error);
-    alert('Ошибка создания задания');
+    container.innerHTML = 'Ошибка загрузки';
     return;
   }
 
-  alert('Задание создано');
+  container.innerHTML = '';
 
-  document.getElementById('task-title').value = '';
-  document.getElementById('task-desc').value = '';
-  document.getElementById('task-reward').value = '';
+  data.forEach(inst => {
+    const el = document.createElement('div');
+    el.className = 'p-3 rounded-xl bg-black/30 space-y-1';
+
+    el.innerHTML = `
+      <div><b>${inst.player_name}</b></div>
+      <div class="text-xs">Статус: ${inst.status}</div>
+      ${
+        inst.status === 'reported'
+          ? `
+        <div class="flex gap-2 pt-2">
+          <button
+            onclick="resolveInstance('${inst.id}', true)"
+            class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold"
+          >
+            Принять
+          </button>
+          <button
+            onclick="resolveInstance('${inst.id}', false)"
+            class="bg-rose-600 px-3 py-1 rounded text-xs font-bold"
+          >
+            Отклонить
+          </button>
+        </div>
+      `
+          : ''
+      }
+    `;
+
+    container.appendChild(el);
+  });
+}
+
+// =====================
+// RESOLVE
+// =====================
+async function resolveInstance(id, approve) {
+  const { data: inst } = await sb
+    .from('task_instances')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (!inst) return;
+
+  const newStatus = approve ? 'approved' : 'rejected';
+
+  await sb.from('task_instances').update({
+    status: newStatus,
+    resolved_at: new Date().toISOString()
+  }).eq('id', id);
+
+  if (approve) {
+    const { data: task } = await sb
+      .from('tasks')
+      .select('reward')
+      .eq('id', inst.task_id)
+      .single();
+
+    await sb.from('users')
+      .update({
+        balance: sb.literal(`balance + ${task.reward}`)
+      })
+      .eq('tg_id', inst.player_tg_id);
+  }
+
+  loadInstances();
 }
 
 // =====================
@@ -105,3 +174,4 @@ async function createTask() {
 window.tryLogin = tryLogin;
 window.logout = logout;
 window.createTask = createTask;
+window.resolveInstance = resolveInstance;
