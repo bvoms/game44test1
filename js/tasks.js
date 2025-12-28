@@ -1,33 +1,46 @@
-import { sb } from './config.js';
-import { sendTelegram } from './telegram.js';
-import { player } from './app.js';
+// js/tasks.js
+import { supabase } from './config.js';
 
-export async function initTasks() {
-  const { data } = await sb.from('tasks').select('*');
-
+export async function loadTasks(player) {
   const container = document.getElementById('tasks-container');
+  container.innerHTML = 'Загрузка заданий...';
+
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    container.innerHTML = 'Ошибка загрузки заданий';
+    return;
+  }
+
+  const available = tasks.filter(t => {
+    const factionOk = !t.faction || t.faction === player.faction;
+    const targetOk = !t.target || t.target === player.tg_id;
+    return factionOk && targetOk;
+  });
+
+  if (available.length === 0) {
+    container.innerHTML = 'Нет доступных заданий';
+    return;
+  }
+
   container.innerHTML = '';
 
-  data
-    .filter(t => t.faction === player.faction || t.target === player.id)
-    .forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'glass p-4 rounded-xl flex justify-between';
+  available.forEach(task => {
+    const el = document.createElement('div');
+    el.className = 'glass p-4 rounded-2xl space-y-2';
 
-      div.innerHTML = `
-        <div>
-          <h4 class="font-bold">${t.title}</h4>
-          <p class="text-xs">${t.reward} TON</p>
-        </div>
-        <button class="btn" data-id="${t.id}">Принять</button>
-      `;
+    el.innerHTML = `
+      <h3 class="font-black">${task.title}</h3>
+      <p class="text-xs">${task.description || ''}</p>
+      <p class="text-xs text-violet-400">
+        Награда: ${task.reward} · Время: ${task.duration_minutes} мин
+      </p>
+    `;
 
-      div.querySelector('button').onclick = () => acceptTask(t);
-      container.appendChild(div);
-    });
-}
-
-async function acceptTask(task) {
-  localStorage.setItem(`active_${player.id}`, JSON.stringify(task));
-  sendTelegram(`🟣 ${player.id} принял задание: ${task.title}`);
+    container.appendChild(el);
+  });
 }
