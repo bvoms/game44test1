@@ -89,6 +89,10 @@ window.onload = async () => {
           balance: 0,
           skulls: 0
         });
+        loadTasks({
+  tg_id: tgId,
+  faction
+});
 
         initRocket();
       };
@@ -98,6 +102,11 @@ window.onload = async () => {
 
     // ===== ПОЛЬЗОВАТЕЛЬ СУЩЕСТВУЕТ =====
     initApp(user);
+
+loadTasks({
+  tg_id: user.tg_id,
+  faction: user.faction
+});
     initRocket();
 
   } catch (e) {
@@ -131,4 +140,5 @@ function initApp(player) {
     profileTagEl.innerText = player.id;
   }
 }
+
 
