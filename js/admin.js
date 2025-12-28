@@ -38,13 +38,20 @@ function showPanel() {
 }
 
 // =====================
-// USERS
+// USERS (для личных заданий)
 // =====================
 async function loadUsers() {
   const select = document.getElementById('task-target');
   select.innerHTML = `<option value="">Общее задание</option>`;
 
-  const { data } = await sb.from('users').select('tg_id, id');
+  const { data, error } = await sb
+    .from('users')
+    .select('tg_id, id');
+
+  if (error) {
+    console.error(error);
+    return;
+  }
 
   data.forEach(u => {
     const opt = document.createElement('option');
@@ -61,27 +68,40 @@ async function createTask() {
   const title = document.getElementById('task-title').value.trim();
   const desc = document.getElementById('task-desc').value.trim();
   const reward = parseFloat(document.getElementById('task-reward').value);
+  const duration = parseInt(document.getElementById('task-duration').value, 10);
   const faction = document.getElementById('task-faction').value || null;
   const target = document.getElementById('task-target').value || null;
 
-  if (!title || isNaN(reward)) {
-    alert('Заполни название и награду');
+  if (!title || isNaN(reward) || isNaN(duration)) {
+    alert('Заполни название, награду и время');
     return;
   }
 
-  await sb.from('tasks').insert({
+  const { error } = await sb.from('tasks').insert({
     title,
     description: desc,
     reward,
+    duration_minutes: duration,
     faction,
     target
   });
 
+  if (error) {
+    console.error(error);
+    alert('Ошибка создания задания');
+    return;
+  }
+
   alert('Задание создано');
+
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-desc').value = '';
+  document.getElementById('task-reward').value = '';
+  document.getElementById('task-duration').value = '';
 }
 
 // =====================
-// LOAD INSTANCES
+// LOAD TASK INSTANCES
 // =====================
 async function loadInstances() {
   const container = document.getElementById('instances-container');
@@ -93,18 +113,24 @@ async function loadInstances() {
     .order('started_at', { ascending: false });
 
   if (error) {
+    console.error(error);
     container.innerHTML = 'Ошибка загрузки';
     return;
   }
 
   container.innerHTML = '';
 
+  if (data.length === 0) {
+    container.innerHTML = 'Пока нет активных заданий';
+    return;
+  }
+
   data.forEach(inst => {
     const el = document.createElement('div');
     el.className = 'p-3 rounded-xl bg-black/30 space-y-1';
 
     el.innerHTML = `
-      <div><b>${inst.player_name}</b></div>
+      <div class="font-bold">${inst.player_name}</div>
       <div class="text-xs">Статус: ${inst.status}</div>
       ${
         inst.status === 'reported'
@@ -133,35 +159,61 @@ async function loadInstances() {
 }
 
 // =====================
-// RESOLVE
+// RESOLVE TASK INSTANCE
 // =====================
-async function resolveInstance(id, approve) {
-  const { data: inst } = await sb
+async function resolveInstance(instanceId, approve) {
+  // 1️⃣ получаем инстанс
+  const { data: inst, error: instErr } = await sb
     .from('task_instances')
     .select('*')
-    .eq('id', id)
+    .eq('id', instanceId)
     .single();
 
-  if (!inst) return;
+  if (instErr || !inst) {
+    alert('Инстанс не найден');
+    return;
+  }
 
   const newStatus = approve ? 'approved' : 'rejected';
 
+  // 2️⃣ обновляем статус инстанса
   await sb.from('task_instances').update({
     status: newStatus,
     resolved_at: new Date().toISOString()
-  }).eq('id', id);
+  }).eq('id', instanceId);
 
+  // 3️⃣ если принято — начисляем награду
   if (approve) {
-    const { data: task } = await sb
+    // получаем награду задания
+    const { data: task, error: taskErr } = await sb
       .from('tasks')
       .select('reward')
       .eq('id', inst.task_id)
       .single();
 
+    if (taskErr || !task) {
+      alert('Задание не найдено');
+      return;
+    }
+
+    // получаем текущий баланс игрока
+    const { data: user, error: userErr } = await sb
+      .from('users')
+      .select('balance')
+      .eq('tg_id', inst.player_tg_id)
+      .single();
+
+    if (userErr || !user) {
+      alert('Игрок не найден');
+      return;
+    }
+
+    const newBalance =
+      Number(user.balance || 0) + Number(task.reward || 0);
+
+    // обновляем баланс
     await sb.from('users')
-      .update({
-        balance: sb.literal(`balance + ${task.reward}`)
-      })
+      .update({ balance: newBalance })
       .eq('tg_id', inst.player_tg_id);
   }
 
@@ -169,7 +221,7 @@ async function resolveInstance(id, approve) {
 }
 
 // =====================
-// EXPOSE
+// EXPOSE TO HTML
 // =====================
 window.tryLogin = tryLogin;
 window.logout = logout;
