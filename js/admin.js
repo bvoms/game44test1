@@ -1,4 +1,6 @@
-// ===== INIT =====
+// =====================
+// INIT
+// =====================
 document.addEventListener('DOMContentLoaded', async () => {
   if (sessionStorage.getItem('admin_auth') === '1') {
     showPanel();
@@ -6,17 +8,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// ===== AUTH =====
+// =====================
+// AUTH
+// =====================
 function tryLogin() {
-  const l = auth-login.value.trim();
-  const p = auth-pass.value.trim();
+  const loginInput = document.getElementById('auth-login');
+  const passInput = document.getElementById('auth-pass');
+  const errorEl = document.getElementById('auth-error');
 
-  if (l === 'game44' && p === 'thewanga') {
+  const login = loginInput.value.trim();
+  const pass = passInput.value.trim();
+
+  if (login === 'game44' && pass === 'thewanga') {
     sessionStorage.setItem('admin_auth', '1');
     showPanel();
     loadUsers();
   } else {
-    document.getElementById('auth-error').classList.remove('hidden');
+    errorEl.classList.remove('hidden');
   }
 }
 
@@ -30,35 +38,47 @@ function showPanel() {
   document.getElementById('admin-panel').classList.remove('hidden');
 }
 
-// ===== USERS =====
+// =====================
+// USERS
+// =====================
 async function loadUsers() {
   const select = document.getElementById('task-target');
   select.innerHTML = `<option value="">Общее задание</option>`;
 
-  const { data: users } = await sb.from('users').select('tg_id, id');
+  const { data: users, error } = await sb
+    .from('users')
+    .select('tg_id, id');
 
-  users.forEach(u => {
+  if (error) {
+    console.error(error);
+    alert('Ошибка загрузки пользователей');
+    return;
+  }
+
+  users.forEach(user => {
     const opt = document.createElement('option');
-    opt.value = u.tg_id;
-    opt.textContent = u.id;
+    opt.value = user.tg_id;
+    opt.textContent = user.id;
     select.appendChild(opt);
   });
 }
 
-// ===== TASKS =====
+// =====================
+// TASKS
+// =====================
 async function createTask() {
-  const title = task-title.value.trim();
-  const description = task-desc.value.trim();
-  const reward = parseFloat(task-reward.value);
-  const faction = task-faction.value || null;
-  const target = task-target.value || null;
+  const title = document.getElementById('task-title').value.trim();
+  const description = document.getElementById('task-desc').value.trim();
+  const reward = parseFloat(document.getElementById('task-reward').value);
+  const faction = document.getElementById('task-faction').value || null;
+  const target = document.getElementById('task-target').value || null;
 
   if (!title || isNaN(reward)) {
-    alert('Заполни обязательные поля');
+    alert('Заполни название и награду');
     return;
   }
 
-  await sb.from('tasks').insert({
+  const { error } = await sb.from('tasks').insert({
     title,
     description,
     reward,
@@ -66,14 +86,22 @@ async function createTask() {
     target
   });
 
+  if (error) {
+    console.error(error);
+    alert('Ошибка создания задания');
+    return;
+  }
+
   alert('Задание создано');
 
-  task-title.value = '';
-  task-desc.value = '';
-  task-reward.value = '';
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-desc').value = '';
+  document.getElementById('task-reward').value = '';
 }
 
-// ===== EXPOSE =====
+// =====================
+// EXPOSE
+// =====================
 window.tryLogin = tryLogin;
 window.logout = logout;
 window.createTask = createTask;
