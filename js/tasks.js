@@ -13,23 +13,23 @@ function sendTelegram(text) {
     text,
     parse_mode: 'Markdown'
   });
-
   fetch(url, { method: 'POST', mode: 'no-cors', body: data });
 }
 
 /* =====================
    STATE
 ===================== */
-let activeInstanceId = null;
+let activeInstance = null;
 let realtimeChannel = null;
+let silentCheckTimer = null;
 
 /* =====================
-   LOAD TASKS (ONCE)
+   INIT / LOAD
 ===================== */
 export async function loadTasks(player) {
   const container = document.getElementById('tasks-container');
 
-  // 1️⃣ Проверяем активное задание
+  // 🔹 всегда проверяем актуальный инстанс
   const { data: inst } = await supabase
     .from('task_instances')
     .select('*')
@@ -37,14 +37,21 @@ export async function loadTasks(player) {
     .in('status', ['active', 'reported'])
     .maybeSingle();
 
+  // === есть активное / на проверке ===
   if (inst) {
-    activeInstanceId = inst.id;
-    subscribeToInstance(inst.id);
+    activeInstance = inst;
+    subscribe(inst.id);
     renderActive(inst);
+    startSilentCheck(player);
     return;
   }
 
-  // 2️⃣ Если активного нет — показываем задания
+  // === если раньше было задание, а теперь нет ===
+  activeInstance = null;
+  stopSilentCheck();
+  unsubscribe();
+
+  // === показываем доступные задания ===
   const { data: tasks } = await supabase.from('tasks').select('*');
 
   container.innerHTML = '';
@@ -89,19 +96,20 @@ window.acceptTask = async (taskId, title, duration) => {
 
   sendTelegram(`🟣 *ПРИНЯТО*\n👤 ${player.id}\n🎯 ${title}`);
 
-  activeInstanceId = inst.id;
-  subscribeToInstance(inst.id);
+  activeInstance = inst;
+  subscribe(inst.id);
   renderActive(inst);
+  startSilentCheck(player);
 };
 
 /* =====================
-   REALTIME SUBSCRIBE
+   REALTIME
 ===================== */
-function subscribeToInstance(id) {
+function subscribe(id) {
   if (realtimeChannel) return;
 
   realtimeChannel = supabase
-    .channel('task-instance')
+    .channel('task_instance_' + id)
     .on(
       'postgres_changes',
       {
@@ -111,12 +119,7 @@ function subscribeToInstance(id) {
         filter: `id=eq.${id}`
       },
       payload => {
-        const status = payload.new.status;
-
-        if (status === 'approved' || status === 'rejected') {
-          activeInstanceId = null;
-          realtimeChannel.unsubscribe();
-          realtimeChannel = null;
+        if (payload.new.status === 'approved' || payload.new.status === 'rejected') {
           loadTasks(window.player);
         }
       }
@@ -124,8 +127,43 @@ function subscribeToInstance(id) {
     .subscribe();
 }
 
+function unsubscribe() {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
 /* =====================
-   RENDER ACTIVE
+   SILENT FALLBACK CHECK
+===================== */
+function startSilentCheck(player) {
+  if (silentCheckTimer) return;
+
+  silentCheckTimer = setInterval(async () => {
+    if (!activeInstance) return;
+
+    const { data } = await supabase
+      .from('task_instances')
+      .select('status')
+      .eq('id', activeInstance.id)
+      .single();
+
+    if (data && (data.status === 'approved' || data.status === 'rejected')) {
+      loadTasks(player);
+    }
+  }, 6000);
+}
+
+function stopSilentCheck() {
+  if (silentCheckTimer) {
+    clearInterval(silentCheckTimer);
+    silentCheckTimer = null;
+  }
+}
+
+/* =====================
+   RENDER
 ===================== */
 function renderActive(inst) {
   const container = document.getElementById('tasks-container');
