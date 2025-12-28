@@ -112,3 +112,14 @@ function initApp(player) {
     skullsEl.innerText = `${player.skulls || 0} 💀`;
   }
 }
+// =====================
+// EXPOSE FUNCTIONS TO HTML
+// =====================
+
+window.switchTab = switchTab;
+window.handleRocketAction = handleRocketAction;
+window.submitMission = submitMission;
+window.topUp = topUp;
+window.swapToSkulls = swapToSkulls;
+window.saveProfile = saveProfile;
+window.setBet = setBet;
