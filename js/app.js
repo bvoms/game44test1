@@ -36,10 +36,21 @@ window.onload = async () => {
     }
 
     const tgId = tgUser.id.toString();
-    const displayName =
-      tgUser.username ||
-      tgUser.first_name ||
-      `id${tgUser.id}`;
+    const displayName = (() => {
+  if (tgUser.username && tgUser.username.length > 0) {
+    return '@' + tgUser.username;
+  }
+
+  if (tgUser.first_name && tgUser.last_name) {
+    return `${tgUser.first_name} ${tgUser.last_name}`;
+  }
+
+  if (tgUser.first_name) {
+    return tgUser.first_name;
+  }
+
+  return `id${tgUser.id}`;
+})();
 
     // ===== USER CHECK =====
     const { data: user } = await supabase
