@@ -246,6 +246,7 @@ window.resolveInstance = resolveInstance;
 window.openPlayerModal = openPlayerModal;
 window.closePlayerModal = closePlayerModal;
 window.savePlayer = savePlayer;
+window.toggleBlockFromModal = toggleBlockFromModal;
 
 async function loadPlayers() {
   const table = document.getElementById('players-table');
@@ -385,6 +386,21 @@ async function savePlayer() {
   closePlayerModal();
   loadPlayers();
 }
+async function toggleBlockFromModal() {
+  if (!currentPlayer) return;
+
+  await sb
+    .from('users')
+    .update({
+      is_blocked: !currentPlayer.is_blocked
+    })
+    .eq('tg_id', currentPlayer.tg_id);
+
+  closePlayerModal();
+  loadPlayers();
+}
+
+
 
 
 
