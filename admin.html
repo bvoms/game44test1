@@ -59,6 +59,29 @@
 
   </div>
 
+  <!-- 🟣 PLAYERS  -->
+<div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
+  <h2 class="font-black uppercase">👥 Players</h2>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-violet-300 uppercase text-xs border-b border-white/10">
+        <tr>
+          <th class="p-3 text-left">Игрок</th>
+          <th>Фракция</th>
+          <th>TON</th>
+          <th>💀</th>
+          <th>Статус</th>
+          <th class="text-right pr-3">Действия</th>
+        </tr>
+      </thead>
+      <tbody id="players-table" class="divide-y divide-white/5">
+        <!-- players here -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
   <button onclick="logout()" class="text-red-400 uppercase font-black">Выйти</button>
 <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
   <h2 class="font-black uppercase">Задания игроков</h2>
@@ -76,4 +99,5 @@
 <script src="./js/admin.js"></script>
 </body>
 </html>
+
 
