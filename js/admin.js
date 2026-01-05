@@ -243,7 +243,8 @@ window.tryLogin = tryLogin;
 window.logout = logout;
 window.createTask = createTask;
 window.resolveInstance = resolveInstance;
-window.toggleBlock = toggleBlock;
+window.openPlayerModal = openPlayerModal;
+window.closePlayerModal = closePlayerModal;
 
 async function loadPlayers() {
   const table = document.getElementById('players-table');
@@ -335,6 +336,35 @@ async function toggleBlock(tgId, isBlocked) {
 
   loadPlayers();
 }
+let currentPlayer = null;
+
+function openPlayerModal(player) {
+  currentPlayer = player;
+
+  document.getElementById('pm-id').textContent = player.id;
+  document.getElementById('pm-tg').textContent = player.tg_id;
+  document.getElementById('pm-faction').textContent = player.faction;
+  document.getElementById('pm-status').textContent =
+    player.is_blocked ? 'BLOCKED' : 'ACTIVE';
+
+  document.getElementById('pm-balance').value = player.balance;
+  document.getElementById('pm-skulls').value = player.skulls;
+
+  const btn = document.getElementById('pm-block-btn');
+  btn.textContent = player.is_blocked ? 'UNBLOCK' : 'BLOCK';
+  btn.className =
+    `flex-1 p-3 rounded font-black uppercase ${
+      player.is_blocked ? 'bg-emerald-600' : 'bg-rose-600'
+    }`;
+
+  document.getElementById('player-modal').classList.remove('hidden');
+}
+
+function closePlayerModal() {
+  document.getElementById('player-modal').classList.add('hidden');
+  currentPlayer = null;
+}
+
 
 
 
