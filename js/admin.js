@@ -245,6 +245,7 @@ window.createTask = createTask;
 window.resolveInstance = resolveInstance;
 window.openPlayerModal = openPlayerModal;
 window.closePlayerModal = closePlayerModal;
+window.savePlayer = savePlayer;
 
 async function loadPlayers() {
   const table = document.getElementById('players-table');
@@ -364,6 +365,28 @@ function closePlayerModal() {
   document.getElementById('player-modal').classList.add('hidden');
   currentPlayer = null;
 }
+async function savePlayer() {
+  if (!currentPlayer) return;
+
+  const balanceInput = document.getElementById('pm-balance');
+  const skullsInput = document.getElementById('pm-skulls');
+
+  const newBalance = parseFloat(balanceInput.value);
+  const newSkulls = parseInt(skullsInput.value, 10);
+
+  await sb
+    .from('users')
+    .update({
+      balance: isNaN(newBalance) ? currentPlayer.balance : newBalance,
+      skulls: isNaN(newSkulls) ? currentPlayer.skulls : newSkulls
+    })
+    .eq('tg_id', currentPlayer.tg_id);
+
+  closePlayerModal();
+  loadPlayers();
+}
+
+
 
 
 
