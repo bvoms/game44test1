@@ -95,9 +95,53 @@
   const SUPABASE_KEY = 'sb_publishable_YAn708jttD0b0vAGLPreog_ZnCvFhAH';
   window.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 </script>
+<!-- PLAYER MODAL -->
+<div id="player-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center">
+  <div class="bg-[#120a1a] w-full max-w-sm rounded-3xl p-6 space-y-4 relative">
+
+    <button onclick="closePlayerModal()"
+      class="absolute top-4 right-4 text-white/50 hover:text-white">✕</button>
+
+    <h2 class="text-xl font-black uppercase">Игрок</h2>
+
+    <div class="space-y-1 text-sm">
+      <div><b>ID:</b> <span id="pm-id"></span></div>
+      <div><b>TG ID:</b> <span id="pm-tg"></span></div>
+      <div><b>Фракция:</b> <span id="pm-faction"></span></div>
+      <div><b>Статус:</b> <span id="pm-status"></span></div>
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-xs uppercase text-slate-400">Баланс (TON)</label>
+      <input id="pm-balance" type="number" step="0.01"
+        class="w-full p-3 rounded bg-black/40">
+    </div>
+
+    <div class="space-y-2">
+      <label class="text-xs uppercase text-slate-400">Черепа</label>
+      <input id="pm-skulls" type="number"
+        class="w-full p-3 rounded bg-black/40">
+    </div>
+
+    <div class="flex gap-2 pt-4">
+      <button onclick="savePlayer()"
+        class="flex-1 bg-violet-600 p-3 rounded font-black uppercase">
+        Сохранить
+      </button>
+
+      <button onclick="toggleBlockFromModal()"
+        id="pm-block-btn"
+        class="flex-1 bg-rose-600 p-3 rounded font-black uppercase">
+        BLOCK
+      </button>
+    </div>
+
+  </div>
+</div>
 
 <script src="./js/admin.js"></script>
 </body>
 </html>
+
 
 
