@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUsers();
     loadInstances();
     loadPlayers();
+    loadAdminLogs();
   }
 });
 
@@ -50,6 +51,7 @@ function tryLogin() {
     loadUsers();
     loadInstances();
     loadPlayers();
+    loadAdminLogs();
   } else {
     error?.classList.remove('hidden');
   }
@@ -429,6 +431,40 @@ async function logAdmin(action, target = null, details = '') {
     details
   });
 }
+async function loadAdminLogs() {
+  const container = document.getElementById('admin-logs');
+  if (!container) return;
+
+  const { data, error } = await sb
+    .from('admin_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    container.textContent = 'Ошибка загрузки логов';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  data.forEach(log => {
+    const el = document.createElement('div');
+    el.className = 'bg-black/30 p-3 rounded-xl';
+
+    el.innerHTML = `
+      <div class="font-bold">${log.action}</div>
+      <div class="text-xs text-slate-400">
+        ${log.target || ''} • ${new Date(log.created_at).toLocaleString()}
+      </div>
+      ${log.details ? `<div class="text-xs">${log.details}</div>` : ''}
+    `;
+
+    container.appendChild(el);
+  });
+}
+
+
 
 
 
