@@ -280,7 +280,7 @@ async function loadPlayers() {
   players.forEach(p => {
     const tr = document.createElement('tr');
 tr.className = 'hover:bg-white/5 transition-all cursor-pointer';
-tr.onclick = () => openPlayerModal(p);
+tr.onclick = () => window.openPlayerModal(p);
 
     tr.innerHTML = `
       <td class="p-3 flex items-center gap-3">
@@ -364,6 +364,7 @@ function closePlayerModal() {
   document.getElementById('player-modal').classList.add('hidden');
   currentPlayer = null;
 }
+
 
 
 
