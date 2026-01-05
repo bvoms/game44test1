@@ -384,16 +384,15 @@ async function loadPlayers() {
     table.appendChild(tr);
   });
 }
-async function toggleBlock(tgId, isBlocked) {
-  await sb
-    .from('users')
+async function toggleBlock(tgId, isBlocked, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  await sb.from('users')
     .update({ is_blocked: !isBlocked })
     .eq('tg_id', tgId);
 
-  await logAdmin(
-    isBlocked ? 'UNBLOCK_USER' : 'BLOCK_USER',
-    tgId
-  );
+  await logAdmin(isBlocked ? 'UNBLOCK_USER' : 'BLOCK_USER', tgId);
 
   loadPlayers();
 }
@@ -590,6 +589,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
