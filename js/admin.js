@@ -198,42 +198,53 @@ async function resolveInstance(instanceId, approve) {
   const status = approve ? 'approved' : 'rejected';
 
   await sb.from('task_instances')
+  .update({
+    status,
+    resolved_at: new Date().toISOString()
+  })
+  .eq('id', instanceId);
+
+let reward = 0;
+
+if (approve) {
+  const { data: task } = await sb
+    .from('tasks')
+    .select('reward')
+    .eq('id', inst.task_id)
+    .single();
+
+  reward = Number(task.reward || 0);
+
+  const { data: user } = await sb
+    .from('users')
+    .select('balance')
+    .eq('tg_id', inst.player_tg_id)
+    .single();
+
+  await sb
+    .from('users')
     .update({
-      status,
-      resolved_at: new Date().toISOString()
+      balance: Number(user.balance || 0) + reward
     })
-    .eq('id', instanceId);
+    .eq('tg_id', inst.player_tg_id);
+}
 
-  let reward = 0;
+// 🔔 TELEGRAM
+sendTelegram(
+  approve
+    ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${inst.player_name}\n+${reward}`
+    : `❌ *ОТКЛОНЕНО*\n👤 ${inst.player_name}`
+);
 
-  if (approve) {
-    const { data: task } = await sb
-      .from('tasks')
-      .select('reward')
-      .eq('id', inst.task_id)
-      .single();
+// 🧾 ADMIN LOG — СТРОГО ПОСЛЕ ВСЕГО
+await logAdmin(
+  approve ? 'TASK_APPROVED' : 'TASK_REJECTED',
+  inst.player_tg_id,
+  approve ? `reward=${reward}` : ''
+);
 
-    reward = Number(task.reward || 0);
+loadInstances();
 
-    const { data: user } = await sb
-      .from('users')
-      .select('balance')
-      .eq('tg_id', inst.player_tg_id)
-      .single();
-
-    await sb.from('users')
-      .update({ balance: Number(user.balance || 0) + reward })
-      .eq('tg_id', inst.player_tg_id);
-  }
-
-  // 🔔 TELEGRAM
-  sendTelegram(
-    approve
-      ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${inst.player_name}\n+${reward}`
-      : `❌ *ОТКЛОНЕНО*\n👤 ${inst.player_name}`
-  );
-
-  loadInstances();
 }
 
 /* =====================
@@ -336,8 +347,14 @@ async function toggleBlock(tgId, isBlocked) {
     .update({ is_blocked: !isBlocked })
     .eq('tg_id', tgId);
 
+  await logAdmin(
+    isBlocked ? 'UNBLOCK_USER' : 'BLOCK_USER',
+    tgId
+  );
+
   loadPlayers();
 }
+
 let currentPlayer = null;
 
 function openPlayerModal(player) {
@@ -383,6 +400,12 @@ async function savePlayer() {
     })
     .eq('tg_id', currentPlayer.tg_id);
 
+  await logAdmin(
+    'EDIT_PLAYER',
+    currentPlayer.tg_id,
+    `balance=${newBalance}, skulls=${newSkulls}`
+  );
+
   closePlayerModal();
   loadPlayers();
 }
@@ -399,6 +422,14 @@ async function toggleBlockFromModal() {
   closePlayerModal();
   loadPlayers();
 }
+async function logAdmin(action, target = null, details = '') {
+  await sb.from('admin_logs').insert({
+    action,
+    target,
+    details
+  });
+}
+
 
 
 
