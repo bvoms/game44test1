@@ -61,6 +61,26 @@
 
   <!-- 🟣 PLAYERS  -->
 <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
+  <!-- FILTERS -->
+<div class="flex flex-wrap gap-3 mb-4">
+  <input
+    id="players-search"
+    placeholder="Поиск по имени или tg_id"
+    class="flex-1 p-3 rounded bg-black/40 text-sm outline-none"
+  >
+
+  <select id="players-faction" class="p-3 rounded bg-black/40 text-sm">
+    <option value="">Все фракции</option>
+    <option value="44">44</option>
+    <option value="93">93</option>
+  </select>
+
+  <select id="players-status" class="p-3 rounded bg-black/40 text-sm">
+    <option value="">Все</option>
+    <option value="active">ACTIVE</option>
+    <option value="blocked">BLOCKED</option>
+  </select>
+</div>
   <h2 class="font-black uppercase">👥 Players</h2>
 
   <div class="overflow-x-auto">
@@ -158,6 +178,7 @@
 <script src="./js/admin.js"></script>
 </body>
 </html>
+
 
 
 
