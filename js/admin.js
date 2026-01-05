@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInstances();
     loadPlayers();
     loadAdminLogs();
+    subscribePlayersRealtime();
      
      ['players-search', 'players-faction', 'players-status'].forEach(id => {
   const el = document.getElementById(id);
@@ -57,6 +58,7 @@ function tryLogin() {
     loadInstances();
     loadPlayers();
     loadAdminLogs();
+    subscribePlayersRealtime();
   } else {
     error?.classList.remove('hidden');
   }
@@ -393,6 +395,28 @@ async function toggleBlock(tgId, isBlocked) {
   loadPlayers();
 }
 
+let playersChannel = null;
+
+function subscribePlayersRealtime() {
+  if (playersChannel) return;
+
+  playersChannel = sb
+    .channel('realtime-users')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'users'
+      },
+      payload => {
+        console.log('Realtime users update:', payload.eventType);
+        loadPlayers();
+      }
+    )
+    .subscribe();
+}
+
 let currentPlayer = null;
 
 function openPlayerModal(player) {
@@ -563,6 +587,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
