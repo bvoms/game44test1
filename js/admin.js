@@ -273,6 +273,10 @@ async function loadPlayers() {
     </tr>
   `;
 
+  const search = document.getElementById('players-search')?.value?.toLowerCase() || '';
+  const faction = document.getElementById('players-faction')?.value || '';
+  const status = document.getElementById('players-status')?.value || '';
+
   const { data: players, error } = await sb
     .from('users')
     .select('*')
@@ -290,12 +294,39 @@ async function loadPlayers() {
     return;
   }
 
+  const filtered = players.filter(p => {
+    const matchSearch =
+      p.id.toLowerCase().includes(search) ||
+      p.tg_id.toLowerCase().includes(search);
+
+    const matchFaction = faction ? p.faction === faction : true;
+    const matchStatus =
+      status === 'blocked'
+        ? p.is_blocked
+        : status === 'active'
+          ? !p.is_blocked
+          : true;
+
+    return matchSearch && matchFaction && matchStatus;
+  });
+
   table.innerHTML = '';
 
-  players.forEach(p => {
+  if (filtered.length === 0) {
+    table.innerHTML = `
+      <tr>
+        <td colspan="6" class="p-6 text-center text-slate-500">
+          Нет результатов
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filtered.forEach(p => {
     const tr = document.createElement('tr');
-tr.className = 'hover:bg-white/5 transition-all cursor-pointer';
-tr.onclick = () => window.openPlayerModal(p);
+    tr.className = 'hover:bg-white/5 transition-all cursor-pointer';
+    tr.onclick = () => openPlayerModal(p);
 
     tr.innerHTML = `
       <td class="p-3 flex items-center gap-3">
@@ -330,7 +361,7 @@ tr.onclick = () => window.openPlayerModal(p);
 
       <td class="text-right pr-3">
         <button
-          onclick="toggleBlock('${p.tg_id}', ${p.is_blocked})"
+          onclick="toggleBlock('${p.tg_id}', ${p.is_blocked}); event.stopPropagation();"
           class="px-3 py-1 rounded-lg text-xs font-black transition-all
           ${p.is_blocked
             ? 'bg-emerald-600 hover:bg-emerald-500'
@@ -527,6 +558,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
