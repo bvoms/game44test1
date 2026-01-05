@@ -378,7 +378,71 @@ function openPlayerModal(player) {
       player.is_blocked ? 'bg-emerald-600' : 'bg-rose-600'
     }`;
 
-  document.getElementById('player-modal').classList.remove('hidden');
+ document.getElementById('player-modal').classList.remove('hidden');
+loadPlayerTasks(player.tg_id);
+}
+async function loadPlayerTasks(tgId) {
+  const container = document.getElementById('player-tasks');
+  if (!container) return;
+
+  container.innerHTML = `<div class="text-slate-500">Загрузка...</div>`;
+
+  const { data, error } = await sb
+    .from('task_instances')
+    .select(`
+      id,
+      status,
+      started_at,
+      resolved_at,
+      tasks (
+        title,
+        reward
+      )
+    `)
+    .eq('player_tg_id', tgId)
+    .order('started_at', { ascending: false });
+
+  if (error) {
+    container.innerHTML = `<div class="text-rose-400">Ошибка загрузки</div>`;
+    console.error(error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    container.innerHTML = `<div class="text-slate-500">Нет заданий</div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+
+  data.forEach(t => {
+    const statusColor =
+      t.status === 'approved' ? 'text-emerald-400'
+      : t.status === 'rejected' ? 'text-rose-400'
+      : t.status === 'reported' ? 'text-amber-400'
+      : 'text-slate-400';
+
+    const el = document.createElement('div');
+    el.className = 'bg-black/30 p-3 rounded-xl space-y-1';
+
+    el.innerHTML = `
+      <div class="font-bold">${t.tasks?.title || '—'}</div>
+      <div class="flex justify-between text-xs">
+        <span class="${statusColor} font-bold uppercase">
+          ${t.status}
+        </span>
+        <span class="text-violet-300">
+          ${t.tasks?.reward || 0} TON
+        </span>
+      </div>
+      <div class="text-[10px] text-slate-500">
+        ${new Date(t.started_at).toLocaleString()}
+        ${t.resolved_at ? ` → ${new Date(t.resolved_at).toLocaleString()}` : ''}
+      </div>
+    `;
+
+    container.appendChild(el);
+  });
 }
 
 function closePlayerModal() {
@@ -463,6 +527,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
