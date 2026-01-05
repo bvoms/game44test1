@@ -150,14 +150,24 @@ function initApp(player) {
 // LOAD INITIAL DATA
 // =====================
 async function loadInitialData(player) {
-  await Promise.all([
-    loadTasks(player),
-    loadProfile(player),
-    loadMarket(),
-    initRocket()
-  ]);
+  console.log('📊 Loading initial data...');
 
-  subscribeToUserUpdates(player.tg_id);
+  try {
+    // ❗ ВАЖНО: UI init — НЕ в Promise.all
+    await loadTasks(player);
+
+    // Эти функции НЕ должны блокировать запуск
+    loadProfile(player);
+    loadMarket();
+    initRocket();
+
+    console.log('✅ Initial data loaded');
+
+    subscribeToUserUpdates(player.tg_id);
+
+  } catch (e) {
+    console.error('Initial data load error:', e);
+  }
 }
 
 // =====================
@@ -185,3 +195,4 @@ function subscribeToUserUpdates(tgId) {
     )
     .subscribe();
 }
+
