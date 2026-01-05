@@ -34,6 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInstances();
     loadPlayers();
     loadAdminLogs();
+     
+     ['players-search', 'players-faction', 'players-status'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', loadPlayers);
+});
   }
 });
 
@@ -558,6 +563,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
