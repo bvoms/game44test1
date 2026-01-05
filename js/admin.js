@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showPanel();
     loadUsers();
     loadInstances();
+    loadPlayers();
   }
 });
 
@@ -48,6 +49,7 @@ function tryLogin() {
     showPanel();
     loadUsers();
     loadInstances();
+    loadPlayers();
   } else {
     error?.classList.remove('hidden');
   }
@@ -241,3 +243,96 @@ window.tryLogin = tryLogin;
 window.logout = logout;
 window.createTask = createTask;
 window.resolveInstance = resolveInstance;
+window.toggleBlock = toggleBlock;
+
+async function loadPlayers() {
+  const table = document.getElementById('players-table');
+  if (!table) return;
+
+  table.innerHTML = `
+    <tr>
+      <td colspan="6" class="p-6 text-center text-slate-400">
+        Загрузка игроков...
+      </td>
+    </tr>
+  `;
+
+  const { data: players, error } = await sb
+    .from('users')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    table.innerHTML = `
+      <tr>
+        <td colspan="6" class="p-6 text-center text-rose-400">
+          Ошибка загрузки игроков
+        </td>
+      </tr>
+    `;
+    console.error(error);
+    return;
+  }
+
+  table.innerHTML = '';
+
+  players.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-white/5 transition-all';
+
+    tr.innerHTML = `
+      <td class="p-3 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center font-black overflow-hidden">
+          ${p.avatar_url
+            ? `<img src="${p.avatar_url}" class="w-full h-full object-cover">`
+            : p.id?.[0] || 'U'}
+        </div>
+        <div>
+          <div class="font-bold">${p.id}</div>
+          <div class="text-xs text-slate-400">${p.tg_id}</div>
+        </div>
+      </td>
+
+      <td class="text-center">
+        <span class="px-2 py-1 rounded-full text-xs font-black
+          ${p.faction === '44'
+            ? 'bg-violet-600/30 text-violet-300'
+            : 'bg-emerald-600/30 text-emerald-300'}">
+          ${p.faction}
+        </span>
+      </td>
+
+      <td class="text-center font-mono">${Number(p.balance).toFixed(2)}</td>
+      <td class="text-center">${p.skulls}</td>
+
+      <td class="text-center">
+        ${p.is_blocked
+          ? `<span class="text-rose-400 font-bold">BLOCKED</span>`
+          : `<span class="text-emerald-400 font-bold">ACTIVE</span>`}
+      </td>
+
+      <td class="text-right pr-3">
+        <button
+          onclick="toggleBlock('${p.tg_id}', ${p.is_blocked})"
+          class="px-3 py-1 rounded-lg text-xs font-black transition-all
+          ${p.is_blocked
+            ? 'bg-emerald-600 hover:bg-emerald-500'
+            : 'bg-rose-600 hover:bg-rose-500'}">
+          ${p.is_blocked ? 'UNBLOCK' : 'BLOCK'}
+        </button>
+      </td>
+    `;
+
+    table.appendChild(tr);
+  });
+}
+async function toggleBlock(tgId, isBlocked) {
+  await sb
+    .from('users')
+    .update({ is_blocked: !isBlocked })
+    .eq('tg_id', tgId);
+
+  loadPlayers();
+}
+
+
