@@ -332,7 +332,10 @@ async function loadPlayers() {
 
   filtered.forEach(p => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-white/5 transition-all cursor-pointer';
+    tr.className = `
+  transition-all cursor-pointer
+  ${p.is_blocked ? 'bg-rose-900/30 hover:bg-rose-900/50' : 'hover:bg-white/5'}
+`;
     tr.onclick = () => openPlayerModal(p);
 
     tr.innerHTML = `
@@ -587,6 +590,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
