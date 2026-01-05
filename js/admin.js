@@ -278,7 +278,8 @@ async function loadPlayers() {
 
   players.forEach(p => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-white/5 transition-all';
+tr.className = 'hover:bg-white/5 transition-all cursor-pointer';
+tr.onclick = () => openPlayerModal(p);
 
     tr.innerHTML = `
       <td class="p-3 flex items-center gap-3">
@@ -334,5 +335,6 @@ async function toggleBlock(tgId, isBlocked) {
 
   loadPlayers();
 }
+
 
 
