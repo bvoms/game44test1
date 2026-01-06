@@ -8,6 +8,11 @@
 ===================== */
 const TG_BOT_TOKEN = '8321050426:AAH4fKadiex7i9NQnC7T2ZyjscRknQgFKlI';
 const TG_CHAT_ID = '-1003693227904';
+const playersFilterState = {
+  search: '',
+  faction: '',
+  status: ''
+};
 
 function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
@@ -38,7 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
      
      ['players-search', 'players-faction', 'players-status'].forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('input', loadPlayers);
+  if (el) el.addEventListener('input', () => {
+  playersFilterState.search =
+    document.getElementById('players-search')?.value.toLowerCase() || '';
+
+  playersFilterState.faction =
+    document.getElementById('players-faction')?.value || '';
+
+  playersFilterState.status =
+    document.getElementById('players-status')?.value || '';
+
+  loadPlayers();
+});
 });
   }
 });
@@ -268,6 +284,15 @@ window.closePlayerModal = closePlayerModal;
 window.savePlayer = savePlayer;
 window.toggleBlockFromModal = toggleBlockFromModal;
 
+function highlight(text, query) {
+  if (!query) return text;
+
+  return text.replace(
+    new RegExp(`(${query})`, 'gi'),
+    '<span class="text-violet-400 font-black">$1</span>'
+  );
+}
+
 async function loadPlayers() {
   const table = document.getElementById('players-table');
   if (!table) return;
@@ -280,9 +305,7 @@ async function loadPlayers() {
     </tr>
   `;
 
-  const search = document.getElementById('players-search')?.value?.toLowerCase() || '';
-  const faction = document.getElementById('players-faction')?.value || '';
-  const status = document.getElementById('players-status')?.value || '';
+  const { search, faction, status } = playersFilterState;
 
   const { data: players, error } = await sb
     .from('users')
@@ -329,7 +352,8 @@ async function loadPlayers() {
     `;
     return;
   }
-
+const countEl = document.getElementById('players-count');
+if (countEl) countEl.textContent = filtered.length;
   filtered.forEach(p => {
     const tr = document.createElement('tr');
     tr.className = `
@@ -346,8 +370,12 @@ async function loadPlayers() {
             : p.id?.[0] || 'U'}
         </div>
         <div>
-          <div class="font-bold">${p.id}</div>
-          <div class="text-xs text-slate-400">${p.tg_id}</div>
+          <div class="font-bold">
+  ${highlight(p.id, search)}
+</div>
+<div class="text-xs text-slate-400">
+  ${highlight(p.tg_id, search)}
+</div>
         </div>
       </td>
 
@@ -607,6 +635,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
