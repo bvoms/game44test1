@@ -57,18 +57,6 @@ function switchTab(tab) {
     localStorage.setItem('lastActiveTab', tab);
   } catch {}
 }
-    // Обновляем активную навигацию
-    const activeNav = document.getElementById(`nav-${tab}`);
-    if (activeNav) {
-      activeNav.classList.remove('text-violet-400/50');
-      activeNav.classList.add('text-violet-400');
-      
-      // Добавляем тактильную обратную связь (вибрация)
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-      }
-    }
-  , 150);
 
   // Сохраняем текущий таб в localStorage
   try {
@@ -228,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('✅ UI система инициализирована');
 });
+
 
 
 
