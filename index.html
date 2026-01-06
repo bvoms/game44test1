@@ -72,36 +72,45 @@
         </div>
     </main>
 
-    <main id="view-rocket" class="app-view max-w-md mx-auto p-4 hidden space-y-4">
-        <!-- History -->
-        <div id="rocket-history" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar"></div>
+    <main id="view-links" class="app-view max-w-md mx-auto p-4 hidden space-y-6">
 
-        <div class="glass rounded-[2rem] p-6 rocket-bg border-violet-500/30 text-center space-y-6 relative overflow-hidden shadow-2xl">
-            <div class="h-44 flex items-end justify-center pb-4 relative">
-                <div id="rocket-container">
-                    <lottie-player id="rocket-obj-lottie" src="" background="transparent" speed="1" loop autoplay class="hidden"></lottie-player>
-                    <img id="rocket-obj-img" src="" class="hidden">
-                </div>
-                <div id="rocket-multiplier" class="absolute top-0 text-5xl font-black italic tracking-tighter text-white">1.00x</div>
-                <div id="rocket-status-text" class="absolute top-16 text-xs font-black uppercase tracking-[0.3em]"></div>
-            </div>
+  <div class="glass rounded-3xl p-6 space-y-5 text-center">
 
-            <div class="space-y-3">
-                <div class="flex gap-2">
-                    <input type="number" id="bet-amount" placeholder="Ставка TON" class="flex-1 bg-black/40 border border-violet-500/30 rounded-xl p-4 text-center font-black outline-none text-white focus:border-violet-500 transition-all">
-                    <button onclick="setBet(0.1)" class="bg-white/5 px-4 py-1 rounded text-[10px] font-bold border border-white/10 active:scale-95">0.1</button>
-                    <button onclick="setBet(0.5)" class="bg-white/5 px-4 py-1 rounded text-[10px] font-bold border border-white/10 active:scale-95">0.5</button>
-                </div>
-                <button id="rocket-main-btn" onclick="handleRocketAction()" class="w-full bg-violet-600 p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all hover:bg-violet-500">Взлёт</button>
-                <p id="rocket-potential" class="text-[10px] font-black text-emerald-400 uppercase hidden">Прибыль: +0.00 TON</p>
-            </div>
-        </div>
+    <h2 class="text-xl font-black uppercase italic">
+      GAME44 COMMUNITY
+    </h2>
 
-        <div class="space-y-3">
-            <h3 class="text-[9px] font-black uppercase tracking-widest text-violet-400/60 ml-2">Ставки игроков</h3>
-            <div id="live-bets" class="space-y-2"></div>
-        </div>
-    </main>
+    <!-- 🎥 VIDEO -->
+    <div class="rounded-2xl overflow-hidden border border-white/10">
+      <video
+        src="./media/game44.mp4"
+        controls
+        playsinline
+        class="w-full rounded-2xl"
+      ></video>
+    </div>
+
+    <!-- 🔗 LINKS -->
+    <div class="space-y-3 pt-4">
+
+      <button
+        onclick="openTelegramLink('https://t.me/game44_chat_test')"
+        class="w-full bg-violet-600 p-4 rounded-2xl font-black uppercase active:scale-95 transition-all"
+      >
+        💬 ЧАТ ИГРОКОВ
+      </button>
+
+      <button
+        onclick="openTelegramLink('https://t.me/game44test')"
+        class="w-full bg-emerald-600 p-4 rounded-2xl font-black uppercase active:scale-95 transition-all"
+      >
+        📢 КАНАЛ GAME44
+      </button>
+
+    </div>
+
+  </div>
+</main>
 
     <main id="view-bank" class="app-view max-w-md mx-auto p-4 hidden space-y-6">
         <div class="glass rounded-3xl p-6 space-y-6">
@@ -145,7 +154,7 @@
 
     <nav class="fixed bottom-0 left-0 right-0 glass border-t border-purple-500/20 px-2 py-4 flex justify-between items-center z-50">
         <button onclick="switchTab('tasks')" class="nav-btn flex-1 text-violet-400/50" id="nav-tasks"><i class="fas fa-list-check text-lg"></i></button>
-        <button onclick="switchTab('rocket')" class="nav-btn flex-1 text-violet-400/50" id="nav-rocket"><i class="fas fa-rocket text-lg"></i></button>
+        <button onclick="switchTab('links')" class="nav-btn flex-1 text-violet-400/50" id="nav-links"><i class="fas fa-link text-lg"></i></button>
         <button onclick="switchTab('bank')" class="nav-btn flex-1 text-violet-400/50" id="nav-bank"><i class="fas fa-university text-lg"></i></button>
         <button onclick="switchTab('market')" class="nav-btn flex-1 text-violet-400/50" id="nav-market"><i class="fas fa-gift text-lg"></i></button>
         <button onclick="switchTab('profile')" class="nav-btn flex-1 text-violet-400/50" id="nav-profile"><i class="fas fa-user text-lg"></i></button>
@@ -200,5 +209,6 @@
 </body>
 
 </html>
+
 
 
