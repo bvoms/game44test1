@@ -603,22 +603,40 @@ async function logAdmin(action, target = null, details = '') {
     details
   });
 }
+/* =====================
+   ADMIN LOGS PAGINATION
+===================== */
+
+let adminLogsPage = 0;
+const ADMIN_LOGS_LIMIT = 10;
+
 async function loadAdminLogs() {
   const container = document.getElementById('admin-logs');
+  const pageLabel = document.getElementById('admin-logs-page');
   if (!container) return;
+
+  container.innerHTML = `<div class="text-slate-500">Загрузка...</div>`;
+
+  const from = adminLogsPage * ADMIN_LOGS_LIMIT;
+  const to = from + ADMIN_LOGS_LIMIT - 1;
 
   const { data, error } = await sb
     .from('admin_logs')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(50);
+    .range(from, to);
 
   if (error) {
-    container.textContent = 'Ошибка загрузки логов';
+    container.innerHTML = `<div class="text-rose-400">Ошибка загрузки логов</div>`;
     return;
   }
 
   container.innerHTML = '';
+
+  if (!data || data.length === 0) {
+    container.innerHTML = `<div class="text-slate-500">Нет данных</div>`;
+    return;
+  }
 
   data.forEach(log => {
     const el = document.createElement('div');
@@ -627,14 +645,30 @@ async function loadAdminLogs() {
     el.innerHTML = `
       <div class="font-bold">${log.action}</div>
       <div class="text-xs text-slate-400">
-        ${log.target || ''} • ${new Date(log.created_at).toLocaleString()}
+        ${log.target || '—'} • ${new Date(log.created_at).toLocaleString()}
       </div>
-      ${log.details ? `<div class="text-xs">${log.details}</div>` : ''}
+      ${log.details ? `<div class="text-xs text-slate-300">${log.details}</div>` : ''}
     `;
 
     container.appendChild(el);
   });
+
+  if (pageLabel) {
+    pageLabel.textContent = `Страница ${adminLogsPage + 1}`;
+  }
 }
+
+function nextAdminLogs() {
+  adminLogsPage++;
+  loadAdminLogs();
+}
+
+function prevAdminLogs() {
+  if (adminLogsPage === 0) return;
+  adminLogsPage--;
+  loadAdminLogs();
+}
+
 
 
 
