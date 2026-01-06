@@ -371,13 +371,14 @@ async function loadPlayers() {
 
       <td class="text-right pr-3">
         <button
-          onclick="toggleBlock('${p.tg_id}', ${p.is_blocked}); event.stopPropagation();"
-          class="px-3 py-1 rounded-lg text-xs font-black transition-all
-          ${p.is_blocked
-            ? 'bg-emerald-600 hover:bg-emerald-500'
-            : 'bg-rose-600 hover:bg-rose-500'}">
-          ${p.is_blocked ? 'UNBLOCK' : 'BLOCK'}
-        </button>
+  onclick="event.stopPropagation(); toggleBlock('${p.tg_id}', ${p.is_blocked}, this)"
+  class="px-3 py-1 rounded-lg text-xs font-black transition-all
+  active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+  ${p.is_blocked
+    ? 'bg-emerald-600 hover:bg-emerald-500'
+    : 'bg-rose-600 hover:bg-rose-500'}">
+  ${p.is_blocked ? 'UNBLOCK' : 'BLOCK'}
+</button>
       </td>
     `;
 
@@ -385,17 +386,24 @@ async function loadPlayers() {
   });
 }
 async function toggleBlock(tgId, isBlocked, btn) {
+  if (!btn) return;
+
   btn.disabled = true;
   btn.textContent = '...';
 
-  await sb.from('users')
+  await sb
+    .from('users')
     .update({ is_blocked: !isBlocked })
     .eq('tg_id', tgId);
 
-  await logAdmin(isBlocked ? 'UNBLOCK_USER' : 'BLOCK_USER', tgId);
+  await logAdmin(
+    isBlocked ? 'UNBLOCK_USER' : 'BLOCK_USER',
+    tgId
+  );
 
   loadPlayers();
 }
+
 
 let playersChannel = null;
 
@@ -540,12 +548,22 @@ async function savePlayer() {
 async function toggleBlockFromModal() {
   if (!currentPlayer) return;
 
+  const newStatus = !currentPlayer.is_blocked;
+
   await sb
     .from('users')
     .update({
-      is_blocked: !currentPlayer.is_blocked
+      is_blocked: newStatus
     })
     .eq('tg_id', currentPlayer.tg_id);
+
+  // обновляем локальное состояние
+  currentPlayer.is_blocked = newStatus;
+
+  await logAdmin(
+    newStatus ? 'BLOCK_USER' : 'UNBLOCK_USER',
+    currentPlayer.tg_id
+  );
 
   closePlayerModal();
   loadPlayers();
@@ -589,6 +607,7 @@ async function loadAdminLogs() {
     container.appendChild(el);
   });
 }
+
 
 
 
