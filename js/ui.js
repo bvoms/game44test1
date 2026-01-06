@@ -32,22 +32,20 @@ function switchTab(tab) {
 
   setTimeout(() => {
     const activeView = document.getElementById(`view-${tab}`);
-    const activeNav = document.getElementById(`nav-${tab}`);
-
     if (activeView) {
       activeView.classList.remove('hidden');
+      activeView.style.opacity = '0';
+      activeView.style.transform = 'translateY(10px)';
       activeView.offsetHeight;
+      activeView.style.transition = 'all 0.3s ease-out';
       activeView.style.opacity = '1';
       activeView.style.transform = 'translateY(0)';
     }
 
+    const activeNav = document.getElementById(`nav-${tab}`);
     if (activeNav) {
       activeNav.classList.remove('text-violet-400/50');
       activeNav.classList.add('text-violet-400');
-    }
-
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-      Telegram.WebApp.HapticFeedback.impactOccurred('light');
     }
   }, 150);
 
@@ -55,7 +53,6 @@ function switchTab(tab) {
     localStorage.setItem('lastActiveTab', tab);
   } catch {}
 }
-
     // Обновляем активную навигацию
     const activeNav = document.getElementById(`nav-${tab}`);
     if (activeNav) {
@@ -233,4 +230,5 @@ document.addEventListener('DOMContentLoaded', () => {
   
   console.log('✅ UI система инициализирована');
 });
+
 
