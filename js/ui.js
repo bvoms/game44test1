@@ -2,59 +2,59 @@
 
 const views = [
   'tasks',
-  'rocket',
+  'links',   // ✅ новая вкладка
   'bank',
   'market',
   'profile'
 ];
 
 function switchTab(tab) {
-  // Проверка валидности таба
   if (!views.includes(tab)) {
     console.error('Invalid tab:', tab);
     return;
   }
 
-  // Скрываем все view с fade-out эффектом
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     const nav = document.getElementById(`nav-${v}`);
-    
+
     if (el) {
-      // Добавляем fade-out
       el.style.opacity = '0';
       el.style.transform = 'translateY(10px)';
-      
-      // Скрываем через небольшую задержку
-      setTimeout(() => {
-        el.classList.add('hidden');
-      }, 150);
+      setTimeout(() => el.classList.add('hidden'), 150);
     }
 
-    // Обновляем стили навигации
     if (nav) {
       nav.classList.remove('text-violet-400');
       nav.classList.add('text-violet-400/50');
     }
   });
 
-  // Показываем активный view с fade-in эффектом
   setTimeout(() => {
     const activeView = document.getElementById(`view-${tab}`);
+    const activeNav = document.getElementById(`nav-${tab}`);
+
     if (activeView) {
       activeView.classList.remove('hidden');
-      
-      // Сброс стилей и применение fade-in
-      activeView.style.opacity = '0';
-      activeView.style.transform = 'translateY(10px)';
-      
-      // Trigger reflow для применения анимации
       activeView.offsetHeight;
-      
-      activeView.style.transition = 'all 0.3s ease-out';
       activeView.style.opacity = '1';
       activeView.style.transform = 'translateY(0)';
     }
+
+    if (activeNav) {
+      activeNav.classList.remove('text-violet-400/50');
+      activeNav.classList.add('text-violet-400');
+    }
+
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+  }, 150);
+
+  try {
+    localStorage.setItem('lastActiveTab', tab);
+  } catch {}
+}
 
     // Обновляем активную навигацию
     const activeNav = document.getElementById(`nav-${tab}`);
@@ -215,7 +215,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   switchTab(lastTab);
-  
+
+  window.openTelegramLink = (url) => {
+  if (window.Telegram?.WebApp) {
+    Telegram.WebApp.openTelegramLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+};
   // Добавляем плавные переходы для всех view
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
@@ -226,3 +233,4 @@ document.addEventListener('DOMContentLoaded', () => {
   
   console.log('✅ UI система инициализирована');
 });
+
