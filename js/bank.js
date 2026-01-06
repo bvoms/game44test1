@@ -1,21 +1,19 @@
-// bank.js — исправленная и стабильная версия
-
+// bank.js — полная стабильная версия с TON Connect
 import { supabase } from './config.js';
 
-
-const isTonAvailable =
-  typeof window !== 'undefined' &&
-  typeof window.TON_CONNECT_UI !== 'undefined';
 /* =====================
    TON CONNECT
 ===================== */
-export let tonConnectUI = null;
+
+let tonConnectUI = null;
 
 function getTonConnect() {
-  if (!isTonAvailable) return null;
+  if (typeof window === 'undefined' || !window.TON_CONNECT_UI) {
+    return null;
+  }
 
   if (!tonConnectUI) {
-    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+    tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
       manifestUrl: `${location.origin}/tonconnect-manifest.json`
     });
   }
@@ -23,9 +21,6 @@ function getTonConnect() {
   return tonConnectUI;
 }
 
-/* =====================
-   WALLET STATE
-===================== */
 export function getConnectedWallet() {
   return tonConnectUI ? tonConnectUI.wallet : null;
 }
@@ -37,28 +32,25 @@ export async function connectWallet() {
     return;
   }
 
-  await ton.connectWallet();
-}
-
-export async function disconnectWallet() {
-  if (tonConnectUI) {
-    await tonConnectUI.disconnect();
-  }
-}catch (e) {
+  try {
+    await ton.connectWallet();
+  } catch (e) {
     console.error('TON Connect error:', e);
     window.showNotification('Не удалось подключить кошелёк', 'error');
   }
 }
 
 export async function disconnectWallet() {
-  await tonConnectUI.disconnect();
+  if (tonConnectUI) {
+    await tonConnectUI.disconnect();
+  }
 }
 
 /* =====================
    BANK FUNCTIONS
 ===================== */
 
-// Пополнение через TON
+// Пополнение
 window.topUp = async (method) => {
   if (method === 'Stars') {
     window.showNotification('Stars пополнение пока в разработке', 'info');
@@ -68,7 +60,6 @@ window.topUp = async (method) => {
   if (method !== 'TON') return;
 
   const ton = getTonConnect();
-
   if (!ton) {
     window.showNotification('TON Connect недоступен', 'error');
     return;
@@ -76,17 +67,21 @@ window.topUp = async (method) => {
 
   try {
     await ton.connectWallet();
+    window.showNotification('Кошелёк подключён', 'success');
   } catch (e) {
     console.error(e);
     window.showNotification('Ошибка подключения кошелька', 'error');
   }
 };
 
-// Обмен TON на черепа
+/* =====================
+   SWAP TON → SKULLS
+===================== */
+
 window.swapToSkulls = async () => {
   const player = window.player;
   if (!player) {
-    window.showNotification('Ошибка: данные игрока не найдены', 'error');
+    window.showNotification('Ошибка: игрок не найден', 'error');
     return;
   }
 
@@ -112,8 +107,8 @@ window.swapToSkulls = async () => {
     }
 
     const skullsToAdd = Math.floor(amount * 100);
-    const newBalance = Number(user.balance) - amount;
-    const newSkulls = Number(user.skulls) + skullsToAdd;
+    const newBalance = user.balance - amount;
+    const newSkulls = user.skulls + skullsToAdd;
 
     await supabase
       .from('users')
@@ -138,7 +133,7 @@ window.swapToSkulls = async () => {
 };
 
 /* =====================
-   PROFILE FUNCTIONS
+   PROFILE
 ===================== */
 
 export async function loadProfile(player) {
@@ -179,14 +174,9 @@ export async function loadProfile(player) {
   }
 }
 
-// Сохранение профиля
 window.saveProfile = async () => {
   const player = window.player;
   if (!player) return;
-
-  const avatar = document.getElementById('edit-avatar')?.value || null;
-  const stream = document.getElementById('edit-stream')?.value || null;
-  const bio = document.getElementById('edit-bio')?.value || null;
 
   try {
     window.showLoader('Сохраняем...');
@@ -194,15 +184,14 @@ window.saveProfile = async () => {
     await supabase
       .from('users')
       .update({
-        avatar_url: avatar,
-        stream_link: stream,
-        bio
+        avatar_url: document.getElementById('edit-avatar')?.value || null,
+        stream_link: document.getElementById('edit-stream')?.value || null,
+        bio: document.getElementById('edit-bio')?.value || null
       })
       .eq('tg_id', player.tg_id);
 
     window.hideLoader();
     window.showNotification('Профиль обновлён', 'success');
-
     loadProfile(player);
 
   } catch (e) {
@@ -212,7 +201,7 @@ window.saveProfile = async () => {
 };
 
 /* =====================
-   MARKET FUNCTIONS
+   MARKET
 ===================== */
 
 export async function loadMarket() {
@@ -228,7 +217,8 @@ export async function loadMarket() {
     container.innerHTML = '';
 
     if (!items || items.length === 0) {
-      container.innerHTML = '<div class="text-center text-slate-400">Товары скоро появятся</div>';
+      container.innerHTML =
+        '<div class="text-center text-slate-400">Товары скоро появятся</div>';
       return;
     }
 
@@ -257,7 +247,6 @@ export async function loadMarket() {
   }
 }
 
-// Покупка
 window.buyMarketItem = async (itemId, name, price) => {
   const player = window.player;
   if (!player) return;
@@ -284,7 +273,7 @@ window.buyMarketItem = async (itemId, name, price) => {
     window.updateSkulls?.(newSkulls);
     window.showNotification(`Куплено: ${name}`, 'success');
 
-  } catch (e) {
+  } catch {
     window.showNotification('Ошибка покупки', 'error');
   }
 };
