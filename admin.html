@@ -58,10 +58,30 @@
     </button>
 
   </div>
-  <!-- 🧾 Admin Logs  -->
-  <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
-  <h2 class="font-black uppercase">🧾 Admin Logs</h2>
+  <!-- 🧾 ADMIN LOGS -->
+<div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
+  <div class="flex justify-between items-center">
+    <h2 class="font-black uppercase">🧾 Admin Logs</h2>
+    <span id="admin-logs-page" class="text-xs text-slate-400">
+      Страница 1
+    </span>
+  </div>
+
   <div id="admin-logs" class="space-y-2 text-sm"></div>
+
+  <div class="flex justify-between pt-3">
+    <button
+      onclick="prevAdminLogs()"
+      class="px-4 py-2 rounded bg-black/40 hover:bg-black/60 text-xs font-black">
+      ← Назад
+    </button>
+
+    <button
+      onclick="nextAdminLogs()"
+      class="px-4 py-2 rounded bg-black/40 hover:bg-black/60 text-xs font-black">
+      Вперёд →
+    </button>
+  </div>
 </div>
 
   <!-- 🟣 PLAYERS  -->
@@ -172,6 +192,7 @@
 <script src="./js/admin.js"></script>
 </body>
 </html>
+
 
 
 
