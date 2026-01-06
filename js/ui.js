@@ -197,38 +197,33 @@ window.showLoader = showLoader;
 window.hideLoader = hideLoader;
 window.formatTime = formatTime;
 
-// Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
-  // Восстанавливаем последний активный таб или открываем tasks
   let lastTab = 'tasks';
-  
+
   try {
     const saved = localStorage.getItem('lastActiveTab');
-    if (saved && views.includes(saved)) {
-      lastTab = saved;
-    }
-  } catch (e) {
-    console.warn('localStorage не доступен:', e);
-  }
-  
+    if (saved && views.includes(saved)) lastTab = saved;
+  } catch {}
+
   switchTab(lastTab);
 
   window.openTelegramLink = (url) => {
-  if (window.Telegram?.WebApp) {
-    Telegram.WebApp.openTelegramLink(url);
-  } else {
-    window.open(url, '_blank');
-  }
-};
-  // Добавляем плавные переходы для всех view
+    if (window.Telegram?.WebApp) {
+      Telegram.WebApp.openTelegramLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     if (el) {
       el.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
     }
   });
-  
+
   console.log('✅ UI система инициализирована');
 });
+
 
 
