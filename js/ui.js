@@ -68,7 +68,7 @@ function switchTab(tab) {
         window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
       }
     }
-  }, 150);
+  , 150);
 
   // Сохраняем текущий таб в localStorage
   try {
@@ -228,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('✅ UI система инициализирована');
 });
+
 
 
 
