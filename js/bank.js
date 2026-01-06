@@ -3,14 +3,55 @@
 import { supabase } from './config.js';
 
 /* =====================
+   TON CONNECT
+===================== */
+export const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+  manifestUrl: `${location.origin}/tonconnect-manifest.json`
+});
+
+/* =====================
+   WALLET STATE
+===================== */
+export function getConnectedWallet() {
+  return tonConnectUI.wallet;
+}
+
+export async function connectWallet() {
+  try {
+    await tonConnectUI.connectWallet();
+  } catch (e) {
+    console.error('TON Connect error:', e);
+    window.showNotification('Не удалось подключить кошелёк', 'error');
+  }
+}
+
+export async function disconnectWallet() {
+  await tonConnectUI.disconnect();
+}
+
+/* =====================
    BANK FUNCTIONS
 ===================== */
 
 // Пополнение через TON
 window.topUp = async (method) => {
-  if (method === 'TON') {
-    window.showNotification('TON пополнение пока в разработке', 'info');
-  } else if (method === 'Stars') {
+  if (method !== 'TON') {
+    window.showNotification('Метод пока не поддерживается', 'info');
+    return;
+  }
+
+  const wallet = tonConnectUI.wallet;
+
+  if (!wallet) {
+    await connectWallet();
+    return;
+  }
+
+  window.showNotification(
+    `Кошелёк подключён:\n${wallet.account.address.slice(0, 6)}...`,
+    'success'
+  );
+}; else if (method === 'Stars') {
     window.showNotification('Stars пополнение пока в разработке', 'info');
   }
 };
