@@ -2,24 +2,49 @@
 
 import { supabase } from './config.js';
 
+
+const isTonAvailable =
+  typeof window !== 'undefined' &&
+  typeof window.TON_CONNECT_UI !== 'undefined';
 /* =====================
    TON CONNECT
 ===================== */
-export const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-  manifestUrl: `${location.origin}/tonconnect-manifest.json`
-});
+export let tonConnectUI = null;
+
+function getTonConnect() {
+  if (!isTonAvailable) return null;
+
+  if (!tonConnectUI) {
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: `${location.origin}/tonconnect-manifest.json`
+    });
+  }
+
+  return tonConnectUI;
+}
 
 /* =====================
    WALLET STATE
 ===================== */
 export function getConnectedWallet() {
-  return tonConnectUI.wallet;
+  return tonConnectUI ? tonConnectUI.wallet : null;
 }
 
 export async function connectWallet() {
-  try {
-    await tonConnectUI.connectWallet();
-  } catch (e) {
+  const ton = getTonConnect();
+  if (!ton) {
+    window.showNotification('TON Connect недоступен', 'error');
+    return;
+  }
+
+  await ton.connectWallet();
+}
+
+export async function disconnectWallet() {
+  if (tonConnectUI) {
+    await tonConnectUI.disconnect();
+  }
+}catch (e) {
     console.error('TON Connect error:', e);
     window.showNotification('Не удалось подключить кошелёк', 'error');
   }
@@ -35,24 +60,25 @@ export async function disconnectWallet() {
 
 // Пополнение через TON
 window.topUp = async (method) => {
-  if (method !== 'TON') {
-    window.showNotification('Метод пока не поддерживается', 'info');
-    return;
-  }
-
-  const wallet = tonConnectUI.wallet;
-
-  if (!wallet) {
-    await connectWallet();
-    return;
-  }
-
-  window.showNotification(
-    `Кошелёк подключён:\n${wallet.account.address.slice(0, 6)}...`,
-    'success'
-  );
-}; else if (method === 'Stars') {
+  if (method === 'Stars') {
     window.showNotification('Stars пополнение пока в разработке', 'info');
+    return;
+  }
+
+  if (method !== 'TON') return;
+
+  const ton = getTonConnect();
+
+  if (!ton) {
+    window.showNotification('TON Connect недоступен', 'error');
+    return;
+  }
+
+  try {
+    await ton.connectWallet();
+  } catch (e) {
+    console.error(e);
+    window.showNotification('Ошибка подключения кошелька', 'error');
   }
 };
 
