@@ -46,6 +46,10 @@ function switchTab(tab) {
     if (activeNav) {
       activeNav.classList.remove('text-violet-400/50');
       activeNav.classList.add('text-violet-400');
+
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+      }
     }
   }, 150);
 
@@ -224,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('✅ UI система инициализирована');
 });
+
 
 
 
