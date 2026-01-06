@@ -70,6 +70,15 @@ window.onload = async () => {
       .eq('tg_id', tgId)
       .maybeSingle();
 
+// =====================
+// BLOCK CHECK
+// =====================
+if (user?.is_blocked) {
+  window.hideLoader();
+  showBlockedScreen(user);
+  return;
+}
+
     // =====================
     // REGISTRATION
     // =====================
@@ -185,14 +194,43 @@ function subscribeToUserUpdates(tgId) {
         filter: `tg_id=eq.${tgId}`
       },
       payload => {
-        if (payload.new.balance !== undefined) {
-          window.updateBalance?.(payload.new.balance);
-        }
-        if (payload.new.skulls !== undefined) {
-          window.updateSkulls?.(payload.new.skulls);
-        }
-      }
+  // 🔒 Если заблокировали — сразу выключаем апп
+  if (payload.new.is_blocked) {
+    showBlockedScreen(payload.new);
+    return;
+  }
+
+  if (payload.new.balance !== undefined) {
+    window.updateBalance?.(payload.new.balance);
+  }
+
+  if (payload.new.skulls !== undefined) {
+    window.updateSkulls?.(payload.new.skulls);
+  }
+}
     )
     .subscribe();
+}
+
+// =====================
+// BLOCKED SCREEN
+// =====================
+function showBlockedScreen(user) {
+  document.body.innerHTML = `
+    <div class="fixed inset-0 bg-black flex items-center justify-center p-6">
+      <div class="glass max-w-sm w-full p-8 rounded-3xl text-center space-y-4">
+        <div class="text-5xl">⛔</div>
+        <h1 class="text-xl font-black uppercase text-rose-400">
+          Доступ ограничен
+        </h1>
+        <p class="text-sm text-slate-300">
+          Ваш аккаунт временно заблокирован администратором.
+        </p>
+        <p class="text-xs text-slate-500">
+          Если вы считаете это ошибкой — обратитесь к администрации.
+        </p>
+      </div>
+    </div>
+  `;
 }
 
