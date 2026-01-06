@@ -58,6 +58,11 @@
     </button>
 
   </div>
+  <!-- 🧾 Admin Logs  -->
+  <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
+  <h2 class="font-black uppercase">🧾 Admin Logs</h2>
+  <div id="admin-logs" class="space-y-2 text-sm"></div>
+</div>
 
   <!-- 🟣 PLAYERS  -->
 <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
@@ -109,11 +114,7 @@
   <div id="instances-container" class="space-y-3 text-sm"></div>
 </div>
 </div>
-<!-- 🧾 Admin Logs  -->
-  <div class="bg-[#120a1a] p-6 rounded-2xl space-y-4">
-  <h2 class="font-black uppercase">🧾 Admin Logs</h2>
-  <div id="admin-logs" class="space-y-2 text-sm"></div>
-</div>
+
 
 
 <!-- SUPABASE -->
@@ -149,16 +150,6 @@
       <input id="pm-skulls" type="number"
         class="w-full p-3 rounded bg-black/40">
     </div>
-    <div class="pt-4 border-t border-white/10">
-  <h3 class="font-black uppercase text-sm mb-3">
-    История заданий
-  </h3>
-
-  <div id="player-tasks" class="space-y-2 text-xs text-slate-300">
-    <div class="text-slate-500">Загрузка...</div>
-  </div>
-</div>
-
     <div class="flex gap-2 pt-4">
       <button onclick="savePlayer()"
         class="flex-1 bg-violet-600 p-3 rounded font-black uppercase">
@@ -175,9 +166,11 @@
   </div>
 </div>
 
+  
 <script src="./js/admin.js"></script>
 </body>
 </html>
+
 
 
 
