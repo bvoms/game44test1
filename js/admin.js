@@ -114,41 +114,42 @@ async function loadUsers() {
    CREATE TASK
 ===================== */
 async function createTask() {
-  const title = document.getElementById('task-title')?.value?.trim();
-  const desc = document.getElementById('task-desc')?.value?.trim() || null;
-  const reward = parseFloat(document.getElementById('task-reward')?.value);
-  const faction = document.getElementById('task-faction')?.value || null;
-  const target = document.getElementById('task-target')?.value || null;
+  const title = document.getElementById('task-title').value.trim();
+  const description = document.getElementById('task-desc').value.trim();
+  const reward = Number(document.getElementById('task-reward').value);
+  const duration = Number(document.getElementById('task-duration').value);
 
-  const durationInput = document.getElementById('task-duration');
-  const duration = durationInput ? parseInt(durationInput.value, 10) : 120;
+  const isTimed = document.getElementById('task-is-timed').checked;
+  const availableUntilInput =
+    document.getElementById('task-available-until').value;
 
-  if (!title || isNaN(reward)) {
-    alert('Заполни название и награду');
-    return;
+  let available_until = null;
+
+  if (isTimed) {
+    if (!availableUntilInput) {
+      alert('Укажи время доступности');
+      return;
+    }
+
+    available_until = new Date(availableUntilInput).toISOString();
   }
 
-  const { error } = await sb.from('tasks').insert({
+  const { error } = await supabase.from('tasks').insert({
     title,
-    description: desc,
+    description,
     reward,
-    duration_minutes: duration,
-    faction,
-    target
+    duration_seconds: duration,
+    available_until
   });
 
   if (error) {
-    alert('Ошибка создания задания');
     console.error(error);
+    alert('Ошибка создания задания');
     return;
   }
 
   alert('Задание создано');
-
-  document.getElementById('task-title').value = '';
-  if (document.getElementById('task-desc')) document.getElementById('task-desc').value = '';
-  document.getElementById('task-reward').value = '';
-  if (document.getElementById('task-duration')) document.getElementById('task-duration').value = '';
+  location.reload();
 }
 
 /* =====================
@@ -668,6 +669,7 @@ function prevAdminLogs() {
   adminLogsPage--;
   loadAdminLogs();
 }
+
 
 
 
