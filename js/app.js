@@ -36,6 +36,11 @@ window.onload = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) {
       await supabase.auth.signInAnonymously();
+      await supabase.auth.updateUser({
+  data: {
+    tg_id: tgId
+  }
+});
     }
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -248,6 +253,7 @@ function showBlockedScreen(user) {
     </div>
   `;
 }
+
 
 
 
