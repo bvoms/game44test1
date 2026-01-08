@@ -57,6 +57,20 @@
     <button onclick="createTask()" class="w-full bg-violet-600 p-4 rounded font-black uppercase">
       Создать задание
     </button>
+    <!-- 🔔 Тип задания -->
+<div class="space-y-2">
+  <label class="flex items-center gap-2 text-sm font-bold">
+    <input type="checkbox" id="task-is-timed" />
+    Временное задание
+  </label>
+
+  <input
+    type="datetime-local"
+    id="task-available-until"
+    class="w-full p-3 rounded-xl bg-black/40 text-white hidden"
+    placeholder="Доступно до"
+  />
+</div>
 
   </div>
   <!-- 🧾 ADMIN LOGS -->
@@ -191,8 +205,17 @@
 
   
 <script src="./js/admin.js"></script>
+  <script>
+  const checkbox = document.getElementById('task-is-timed');
+  const untilInput = document.getElementById('task-available-until');
+
+  checkbox.addEventListener('change', () => {
+    untilInput.classList.toggle('hidden', !checkbox.checked);
+  });
+</script>
 </body>
 </html>
+
 
 
 
