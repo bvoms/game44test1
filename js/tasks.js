@@ -69,6 +69,46 @@ function stopTimer() {
   }
 }
 
+function getAvailabilityLabel(availableUntil) {
+  if (!availableUntil) {
+    return {
+      text: '♾ Постоянное',
+      class: 'bg-slate-800/60 text-slate-300'
+    };
+  }
+
+  const now = Date.now();
+  const end = new Date(availableUntil).getTime();
+  const diff = end - now;
+
+  if (diff <= 0) {
+    return null; // уже недоступно
+  }
+
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+
+  if (minutes < 60) {
+    return {
+      text: `🔥 Осталось ${minutes} мин`,
+      class: 'bg-rose-900/60 text-rose-300'
+    };
+  }
+
+  if (hours < 24) {
+    return {
+      text: `⏳ Осталось ${hours}ч ${minutes % 60}м`,
+      class: 'bg-amber-900/60 text-amber-300'
+    };
+  }
+
+  const date = new Date(availableUntil);
+  return {
+    text: `📅 До ${date.toLocaleDateString()} ${date.toLocaleTimeString().slice(0,5)}`,
+    class: 'bg-violet-900/60 text-violet-300'
+  };
+}
+
 /* =====================
    LOAD TASKS
 ===================== */
@@ -150,11 +190,17 @@ const { data: tasks, error: tasksError } = await supabase
     }
 
     // Фильтруем задания
-    const availableTasks = (tasks || []).filter(t =>
-      (!t.faction || t.faction === player.faction) &&
-      (!t.target || t.target === player.tg_id) &&
-      !doneTaskIds.has(t.id)
-    );
+    const availableTasks = (tasks || []).filter(t => {
+  if (t.available_until && new Date(t.available_until).getTime() <= Date.now()) {
+    return false; // задание протухло
+  }
+
+  return (
+    (!t.faction || t.faction === player.faction) &&
+    (!t.target || t.target === player.tg_id) &&
+    !doneTaskIds.has(t.id)
+  );
+});
 
     // Отображаем задания
     container.innerHTML = '';
@@ -185,12 +231,22 @@ const { data: tasks, error: tasksError } = await supabase
       const hours = Math.floor(duration / 60);
       const mins = duration % 60;
       const timeStr = hours > 0 ? `${hours}ч ${mins}м` : `${mins}м`;
-      
+      const availability = getAvailabilityLabel(task.available_until);
       el.innerHTML = `
-        <div class="flex justify-between items-start gap-2">
-          <h3 class="font-black text-white leading-tight flex-1">${task.title}</h3>
-          ${factionBadge}
-        </div>
+        ЗАМЕНИ НА:
+<div class="flex justify-between items-start gap-2">
+  <h3 class="font-black text-white leading-tight flex-1">${task.title}</h3>
+  <div class="flex flex-col gap-1 items-end">
+    ${factionBadge}
+    ${
+      availability
+        ? `<span class="text-[9px] px-2 py-1 rounded-full font-bold ${availability.class}">
+             ${availability.text}
+           </span>`
+        : ''
+    }
+  </div>
+</div>
         
         ${task.description ? `
           <p class="text-xs text-slate-300 bg-black/30 p-3 rounded-xl border border-white/5 leading-relaxed">
@@ -439,4 +495,5 @@ window.addEventListener('beforeunload', () => {
   stopTimer();
   unsubscribe();
 });
+
 
