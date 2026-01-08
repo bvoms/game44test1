@@ -276,31 +276,27 @@ window.saveProfile = async () => {
   try {
     window.showLoader('Сохраняем профиль...');
 
-    let avatarUrl = player.avatar_url || null;
+    let avatarUrl; // ⚠️ ВАЖНО: undefined, не null
 
-    // 1️⃣ ЕСЛИ ВЫБРАЛИ ФОТО
-    if (fileInput?.files?.[0]) {
-  const file = fileInput.files[0];
+    // 1️⃣ ЕСЛИ ВЫБРАЛИ ФАЙЛ
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
 
-  // ❗ ЛИМИТ 10 МБ
-  const MAX_SIZE = 10 * 1024 * 1024;
+      // 🔒 ЛИМИТ 10 МБ
+      const MAX_SIZE = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        throw new Error('Максимальный размер файла — 10 МБ');
+      }
 
-  if (file.size > MAX_SIZE) {
-    throw new Error('Максимальный размер файла — 10 МБ');
-  }
-
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Можно загружать только изображения');
-  }
-
+      // 🔒 ТОЛЬКО ИЗОБРАЖЕНИЯ
       if (!file.type.startsWith('image/')) {
         throw new Error('Можно загружать только изображения');
       }
 
       const ext = file.name.split('.').pop();
-      const filePath = `avatars/${player.tg_id}.${ext}`;
+      const filePath = `${player.tg_id}.${ext}`; // ❗ БЕЗ avatars/
 
-      // 2️⃣ ЗАГРУЗКА В STORAGE
+      // 2️⃣ ЗАГРУЖАЕМ В STORAGE
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, {
@@ -310,7 +306,7 @@ window.saveProfile = async () => {
 
       if (uploadError) throw uploadError;
 
-      // 3️⃣ PUBLIC URL
+      // 3️⃣ ПОЛУЧАЕМ PUBLIC URL
       const { data } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
@@ -318,28 +314,37 @@ window.saveProfile = async () => {
       avatarUrl = data.publicUrl;
     }
 
-    // 4️⃣ ОБНОВЛЯЕМ USERS
-    const { error: updateError } = await supabase
+    // 4️⃣ ГОТОВИМ ОБНОВЛЕНИЕ USERS
+    const updateData = {
+      stream_link: stream,
+      bio
+    };
+
+    // ❗ avatar_url обновляем ТОЛЬКО если реально загрузили файл
+    if (avatarUrl !== undefined) {
+      updateData.avatar_url = avatarUrl;
+    }
+
+    // 5️⃣ ПИШЕМ В БАЗУ
+    const { error } = await supabase
       .from('users')
-      .update({
-        avatar_url: avatarUrl,
-        stream_link: stream,
-        bio
-      })
+      .update(updateData)
       .eq('tg_id', player.tg_id);
 
-    if (updateError) throw updateError;
+    if (error) throw error;
 
-    // 5️⃣ ОБНОВЛЯЕМ UI СРАЗУ
-    window.player.avatar_url = avatarUrl;
+    // 6️⃣ ОБНОВЛЯЕМ UI
+    if (avatarUrl) {
+      window.player.avatar_url = avatarUrl;
 
-    const img = document.getElementById('profile-img');
-    const placeholder = document.getElementById('profile-placeholder');
+      const img = document.getElementById('profile-img');
+      const placeholder = document.getElementById('profile-placeholder');
 
-    if (img && avatarUrl) {
-      img.src = avatarUrl + '?v=' + Date.now(); // cache-bust
-      img.classList.remove('hidden');
-      placeholder?.classList.add('hidden');
+      if (img) {
+        img.src = avatarUrl + '?v=' + Date.now(); // cache bust
+        img.classList.remove('hidden');
+        placeholder?.classList.add('hidden');
+      }
     }
 
     window.hideLoader();
