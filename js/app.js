@@ -31,24 +31,6 @@ window.onload = async () => {
     }
 
     // =====================
-    // SUPABASE AUTH
-    // =====================
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      await supabase.auth.signInAnonymously();
-      await supabase.auth.updateUser({
-  data: {
-    tg_id: tgId
-  }
-});
-    }
-
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
-      throw new Error('Supabase auth failed');
-    }
-
-    // =====================
     // TELEGRAM USER
     // =====================
     let tgUser = tg?.initDataUnsafe?.user;
@@ -65,6 +47,27 @@ window.onload = async () => {
     const tgId = tgUser.id.toString();
     const telegramName = tgUser.first_name?.trim() || null;
 
+    // ✅ АВАТАР ИЗ TELEGRAM
+    const avatarUrl = tgUser?.photo_url || null;
+
+    // =====================
+    // SUPABASE AUTH
+    // =====================
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      await supabase.auth.signInAnonymously();
+      await supabase.auth.updateUser({
+        data: {
+          tg_id: tgId
+        }
+      });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+      throw new Error('Supabase auth failed');
+    }
+
     // =====================
     // CHECK USER
     // =====================
@@ -74,14 +77,14 @@ window.onload = async () => {
       .eq('tg_id', tgId)
       .maybeSingle();
 
-// =====================
-// BLOCK CHECK
-// =====================
-if (user?.is_blocked) {
-  window.hideLoader();
-  showBlockedScreen(user);
-  return;
-}
+    // =====================
+    // BLOCK CHECK
+    // =====================
+    if (user?.is_blocked) {
+      window.hideLoader();
+      showBlockedScreen(user);
+      return;
+    }
 
     // =====================
     // REGISTRATION
@@ -102,33 +105,33 @@ if (user?.is_blocked) {
         window.showLoader('Регистрация...');
 
         const { data: newUser, error } = await supabase
-  .from('users')
-  .insert({
-    id: finalName,
-    tg_id: tgId,
-    faction,
-    balance: 0,
-    skulls: 0,
-    avatar_url: null,
-    stream_link: null,
-    bio: null
-  })
-  .select()
-  .single();
+          .from('users')
+          .insert({
+            id: finalName,
+            tg_id: tgId,
+            faction,
+            balance: 0,
+            skulls: 0,
+            avatar_url: avatarUrl, // ✅ ВАЖНО: аватар из Telegram
+            stream_link: null,
+            bio: null
+          })
+          .select()
+          .single();
 
-if (error || !newUser) {
-  window.hideLoader();
-  window.showNotification('Ошибка регистрации', 'error');
-  return;
-}
+        if (error || !newUser) {
+          window.hideLoader();
+          window.showNotification('Ошибка регистрации', 'error');
+          return;
+        }
 
-// ⛔ НЕ reload
-window.player = newUser;
+        // ⛔ НЕ reload
+        window.player = newUser;
 
-initApp(newUser);
-await loadInitialData(newUser);
+        initApp(newUser);
+        await loadInitialData(newUser);
 
-location.reload();
+        location.reload();
       };
 
       return;
@@ -214,20 +217,20 @@ function subscribeToUserUpdates(tgId) {
         filter: `tg_id=eq.${tgId}`
       },
       payload => {
-  // 🔒 Если заблокировали — сразу выключаем апп
-  if (payload.new.is_blocked) {
-    showBlockedScreen(payload.new);
-    return;
-  }
+        // 🔒 Если заблокировали — сразу выключаем апп
+        if (payload.new.is_blocked) {
+          showBlockedScreen(payload.new);
+          return;
+        }
 
-  if (payload.new.balance !== undefined) {
-    window.updateBalance?.(payload.new.balance);
-  }
+        if (payload.new.balance !== undefined) {
+          window.updateBalance?.(payload.new.balance);
+        }
 
-  if (payload.new.skulls !== undefined) {
-    window.updateSkulls?.(payload.new.skulls);
-  }
-}
+        if (payload.new.skulls !== undefined) {
+          window.updateSkulls?.(payload.new.skulls);
+        }
+      }
     )
     .subscribe();
 }
@@ -253,10 +256,3 @@ function showBlockedScreen(user) {
     </div>
   `;
 }
-
-
-
-
-
-
-
