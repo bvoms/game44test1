@@ -123,7 +123,7 @@ window.player = newUser;
 initApp(newUser);
 await loadInitialData(newUser);
 
-location.reload();
+window.hideLoader();
       };
 
       return;
@@ -248,6 +248,7 @@ function showBlockedScreen(user) {
     </div>
   `;
 }
+
 
 
 
