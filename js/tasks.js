@@ -1,4 +1,3 @@
-
 import { supabase } from './config.js';
 
 /* =====================
@@ -29,7 +28,6 @@ let timerInterval = null;
    TIMER MANAGEMENT
 ===================== */
 function startTimer(deadline) {
-  // Очищаем предыдущий таймер
   if (timerInterval) {
     clearInterval(timerInterval);
   }
@@ -47,13 +45,17 @@ function startTimer(deadline) {
       timerEl.textContent = '00:00:00';
       timerEl.classList.remove('timer-active');
       timerEl.classList.add('text-rose-500');
+      
+      // Задание провалено
+      if (activeInstance && activeInstance.status === 'active') {
+        failTask();
+      }
       return;
     }
 
     const seconds = Math.floor(diff / 1000);
     timerEl.textContent = window.formatTime(seconds);
     
-    // Мигание когда осталось меньше минуты
     if (seconds < 60) {
       timerEl.classList.add('timer-active', 'text-rose-400');
     } else {
@@ -66,6 +68,25 @@ function stopTimer() {
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
+  }
+}
+
+async function failTask() {
+  if (!activeInstance) return;
+
+  try {
+    await supabase
+      .from('task_instances')
+      .update({ status: 'failed' })
+      .eq('id', activeInstance.id);
+
+    window.showNotification('⏱️ Время вышло — задание провалено', 'error');
+    stopTimer();
+    activeInstance = null;
+    unsubscribe();
+    loadTasks(window.player);
+  } catch (e) {
+    console.error('Fail task error:', e);
   }
 }
 
@@ -82,7 +103,7 @@ function getAvailabilityLabel(availableUntil) {
   const diff = end - now;
 
   if (diff <= 0) {
-    return null; // уже недоступно
+    return null;
   }
 
   const minutes = Math.floor(diff / 60000);
@@ -146,12 +167,11 @@ export async function loadTasks(player) {
       return;
     }
 
-    // Скрываем зону активного задания
     if (activeZone) {
       activeZone.classList.add('hidden');
     }
 
-    // 2️⃣ Получаем историю выполненных заданий
+    // 2️⃣ История выполненных заданий (только approved)
     const { data: history, error: histError } = await supabase
       .from('task_instances')
       .select('task_id')
@@ -168,13 +188,13 @@ export async function loadTasks(player) {
     // 3️⃣ Загружаем доступные задания
     const now = new Date().toISOString();
 
-const { data: tasks, error: tasksError } = await supabase
-  .from('tasks')
-  .select('*')
-  .or(
-    `available_until.is.null,available_until.gt.${now}`
-  )
-  .order('created_at', { ascending: false });
+    const { data: tasks, error: tasksError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('is_active', true)
+      .or(`available_from.is.null,available_from.lte.${now}`)
+      .or(`available_until.is.null,available_until.gt.${now}`)
+      .order('created_at', { ascending: false });
 
     if (tasksError) {
       console.error('Error loading tasks:', tasksError);
@@ -191,16 +211,16 @@ const { data: tasks, error: tasksError } = await supabase
 
     // Фильтруем задания
     const availableTasks = (tasks || []).filter(t => {
-  if (t.available_until && new Date(t.available_until).getTime() <= Date.now()) {
-    return false; // задание протухло
-  }
+      if (t.available_until && new Date(t.available_until).getTime() <= Date.now()) {
+        return false;
+      }
 
-  return (
-    (!t.faction || t.faction === player.faction) &&
-    (!t.target || t.target === player.tg_id) &&
-    !doneTaskIds.has(t.id)
-  );
-});
+      return (
+        (!t.faction || t.faction === player.faction) &&
+        (!t.target || t.target === player.tg_id) &&
+        !doneTaskIds.has(t.id)
+      );
+    });
 
     // Отображаем задания
     container.innerHTML = '';
@@ -232,20 +252,21 @@ const { data: tasks, error: tasksError } = await supabase
       const mins = duration % 60;
       const timeStr = hours > 0 ? `${hours}ч ${mins}м` : `${mins}м`;
       const availability = getAvailabilityLabel(task.available_until);
+      
       el.innerHTML = `
-<div class="flex justify-between items-start gap-2">
-  <h3 class="font-black text-white leading-tight flex-1">${task.title}</h3>
-  <div class="flex flex-col gap-1 items-end">
-    ${factionBadge}
-    ${
-      availability
-        ? `<span class="text-[9px] px-2 py-1 rounded-full font-bold ${availability.class}">
-             ${availability.text}
-           </span>`
-        : ''
-    }
-  </div>
-</div>
+        <div class="flex justify-between items-start gap-2">
+          <h3 class="font-black text-white leading-tight flex-1">${task.title}</h3>
+          <div class="flex flex-col gap-1 items-end">
+            ${factionBadge}
+            ${
+              availability
+                ? `<span class="text-[9px] px-2 py-1 rounded-full font-bold ${availability.class}">
+                     ${availability.text}
+                   </span>`
+                : ''
+            }
+          </div>
+        </div>
         
         ${task.description ? `
           <p class="text-xs text-slate-300 bg-black/30 p-3 rounded-xl border border-white/5 leading-relaxed">
@@ -293,23 +314,41 @@ window.acceptTask = async (taskId, title, duration) => {
   }
 
   try {
-  // 🔒 Проверяем доступность задания
-  const { data: task } = await supabase
-    .from('tasks')
-    .select('available_until')
-    .eq('id', taskId)
-    .single();
+    // 🔒 Проверяем доступность задания
+    const { data: task } = await supabase
+      .from('tasks')
+      .select('available_until, is_active')
+      .eq('id', taskId)
+      .single();
 
-  if (
-    task?.available_until &&
-    new Date(task.available_until) < new Date()
-  ) {
-    window.showNotification(
-      '⏳ Задание больше недоступно',
-      'error'
-    );
-    return;
-  }
+    if (!task?.is_active) {
+      window.showNotification('⏳ Задание недоступно', 'error');
+      loadTasks(player);
+      return;
+    }
+
+    if (
+      task?.available_until &&
+      new Date(task.available_until) < new Date()
+    ) {
+      window.showNotification('⏳ Задание больше недоступно', 'error');
+      loadTasks(player);
+      return;
+    }
+
+    // 🔒 Проверяем, нет ли активного задания
+    const { data: existing } = await supabase
+      .from('task_instances')
+      .select('id')
+      .eq('player_tg_id', player.tg_id)
+      .in('status', ['active', 'reported'])
+      .maybeSingle();
+
+    if (existing) {
+      window.showNotification('У вас уже есть активное задание', 'warning');
+      return;
+    }
+
     window.showLoader('Принимаем задание...');
 
     const deadline = new Date(Date.now() + duration * 60000).toISOString();
@@ -334,7 +373,18 @@ window.acceptTask = async (taskId, title, duration) => {
       return;
     }
 
-    sendTelegram(`🟣 *ПРИНЯТО*\n👤 ${player.id}\n🎯 ${title}`);
+    // TG уведомление
+    const { data: userData } = await supabase
+      .from('users')
+      .select('stream_link')
+      .eq('tg_id', player.tg_id)
+      .single();
+
+    const playerTag = userData?.stream_link
+      ? `[${player.id}](${userData.stream_link})`
+      : player.id;
+
+    sendTelegram(`🟣 *ПРИНЯТО*\n👤 ${playerTag}\n🎯 ${title}`);
 
     activeInstance = inst;
     subscribe(inst.id);
@@ -353,7 +403,6 @@ window.acceptTask = async (taskId, title, duration) => {
    REALTIME SUBSCRIPTION
 ===================== */
 function subscribe(id) {
-  // Отписываемся от предыдущего канала
   unsubscribe();
 
   realtimeChannel = supabase
@@ -403,7 +452,6 @@ async function renderActive(inst) {
 
   if (!activeZone) return;
 
-  // Получаем данные задания
   const { data: task } = await supabase
     .from('tasks')
     .select('*')
@@ -415,15 +463,9 @@ async function renderActive(inst) {
     return;
   }
 
-  // Показываем зону активного задания
   activeZone.classList.remove('hidden');
   
-  document.getElementById('active-title').textContent = task.title;
-  document.getElementById('active-desc').textContent = task.description || 'Выполните задание';
-  document.getElementById('active-reward').textContent = `+${task.reward} TON`;
-
   if (inst.status === 'reported') {
-    // Задание на проверке
     activeZone.innerHTML = `
       <div class="glass p-6 rounded-3xl text-center space-y-4 bg-gradient-to-br from-amber-900/20 to-transparent border-amber-500/30">
         <div class="text-5xl">⏳</div>
@@ -437,7 +479,10 @@ async function renderActive(inst) {
     `;
     tasksContainer.innerHTML = '';
   } else {
-    // Задание активно
+    document.getElementById('active-title').textContent = task.title;
+    document.getElementById('active-desc').textContent = task.description || 'Выполните задание';
+    document.getElementById('active-reward').textContent = `+${task.reward} TON`;
+
     startTimer(inst.deadline);
     tasksContainer.innerHTML = '';
   }
@@ -452,6 +497,71 @@ window.submitMission = async () => {
     return;
   }
 
+  // Показываем модалку загрузки proof
+  showProofModal();
+};
+
+function showProofModal() {
+  const modal = document.createElement('div');
+  modal.id = 'proof-modal';
+  modal.className = 'fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-6';
+  
+  modal.innerHTML = `
+    <div class="glass max-w-sm w-full p-6 rounded-3xl space-y-4">
+      <h3 class="text-xl font-black uppercase">Доказательство</h3>
+      
+      <div class="space-y-2">
+        <label class="text-xs uppercase text-slate-400">Тип</label>
+        <select id="proof-type" class="w-full p-3 rounded-xl bg-black/40 text-white">
+          <option value="">Без доказательства</option>
+          <option value="image">Фото</option>
+          <option value="video">Видео</option>
+        </select>
+      </div>
+      
+      <div id="proof-url-container" class="space-y-2 hidden">
+        <label class="text-xs uppercase text-slate-400">Ссылка</label>
+        <input id="proof-url" type="url" placeholder="https://..." class="w-full p-3 rounded-xl bg-black/40 text-white" />
+      </div>
+      
+      <div class="flex gap-2">
+        <button onclick="closeProofModal()" class="flex-1 bg-slate-600 p-3 rounded-xl font-black uppercase">
+          Отмена
+        </button>
+        <button onclick="submitWithProof()" class="flex-1 bg-violet-600 p-3 rounded-xl font-black uppercase">
+          Отправить
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('proof-type').addEventListener('change', (e) => {
+    const container = document.getElementById('proof-url-container');
+    if (e.target.value) {
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
+  });
+}
+
+window.closeProofModal = () => {
+  document.getElementById('proof-modal')?.remove();
+};
+
+window.submitWithProof = async () => {
+  const proofType = document.getElementById('proof-type').value || null;
+  const proofUrl = document.getElementById('proof-url')?.value.trim() || null;
+  
+  if (proofType && !proofUrl) {
+    window.showNotification('Укажите ссылку на доказательство', 'warning');
+    return;
+  }
+
+  window.closeProofModal();
+
   try {
     window.showLoader('Отправляем на проверку...');
 
@@ -459,7 +569,9 @@ window.submitMission = async () => {
       .from('task_instances')
       .update({
         status: 'reported',
-        reported_at: new Date().toISOString()
+        reported_at: new Date().toISOString(),
+        proof_type: proofType,
+        proof_url: proofUrl
       })
       .eq('id', activeInstance.id)
       .select()
@@ -474,7 +586,18 @@ window.submitMission = async () => {
     }
 
     const player = window.player;
-    sendTelegram(`📩 *ВЫПОЛНЕНО*\n👤 ${player.id}\n🎯 Задание отправлено на проверку`);
+    
+    const { data: userData } = await supabase
+      .from('users')
+      .select('stream_link')
+      .eq('tg_id', player.tg_id)
+      .single();
+
+    const playerTag = userData?.stream_link
+      ? `[${player.id}](${userData.stream_link})`
+      : player.id;
+
+    sendTelegram(`📩 *ВЫПОЛНЕНО*\n👤 ${playerTag}\n🎯 Задание отправлено на проверку`);
 
     stopTimer();
     activeInstance = inst;
@@ -494,6 +617,3 @@ window.addEventListener('beforeunload', () => {
   stopTimer();
   unsubscribe();
 });
-
-
-
