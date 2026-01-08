@@ -233,7 +233,6 @@ const { data: tasks, error: tasksError } = await supabase
       const timeStr = hours > 0 ? `${hours}ч ${mins}м` : `${mins}м`;
       const availability = getAvailabilityLabel(task.available_until);
       el.innerHTML = `
-        ЗАМЕНИ НА:
 <div class="flex justify-between items-start gap-2">
   <h3 class="font-black text-white leading-tight flex-1">${task.title}</h3>
   <div class="flex flex-col gap-1 items-end">
@@ -495,5 +494,6 @@ window.addEventListener('beforeunload', () => {
   stopTimer();
   unsubscribe();
 });
+
 
 
