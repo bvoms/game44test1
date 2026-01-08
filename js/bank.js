@@ -290,3 +290,61 @@ window.setBet = (amount) => {
 window.handleRocketAction = () => {
   window.showNotification('Rocket игра пока в разработке', 'info');
 };
+
+window.saveProfile = async () => {
+  const player = window.player;
+  if (!player) return;
+
+  const fileInput = document.getElementById('edit-avatar-file');
+  const stream = document.getElementById('edit-stream')?.value || null;
+  const bio = document.getElementById('edit-bio')?.value || null;
+
+  try {
+    window.showLoader('Сохраняем профиль...');
+
+    let avatarUrl = null;
+
+    // ⬆️ ЕСЛИ ЗАГРУЖАЮТ ФОТО
+    if (fileInput?.files?.[0]) {
+      const file = fileInput.files[0];
+      const ext = file.name.split('.').pop();
+      const fileName = `${player.tg_id}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: file.type
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      avatarUrl = data.publicUrl;
+    }
+
+    await supabase
+      .from('users')
+      .update({
+        avatar_url: avatarUrl,
+        stream_link: stream,
+        bio
+      })
+      .eq('tg_id', player.tg_id);
+
+    window.hideLoader();
+    window.showNotification('Профиль обновлён', 'success');
+
+    location.reload();
+
+  } catch (e) {
+    console.error(e);
+    window.hideLoader();
+    window.showNotification('Ошибка сохранения профиля', 'error');
+  }
+};
