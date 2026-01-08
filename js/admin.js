@@ -1,4 +1,4 @@
-Content is user-generated and unverified.
+
 /* =====================
    SUPABASE
 ===================== */
@@ -924,6 +924,7 @@ window.savePlayer = savePlayer;
 window.toggleBlockFromModal = toggleBlockFromModal;
 window.nextAdminLogs = nextAdminLogs;
 window.prevAdminLogs = prevAdminLogs;
+
 
 
 
