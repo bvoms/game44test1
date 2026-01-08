@@ -275,53 +275,127 @@ async function loadInstances() {
       *,
       tasks (title, reward)
     `)
-    .order('started_at', { ascending: false });
+    .order('started_at', { ascending: false })
+    .limit(50);
 
   if (error) {
-    container.innerHTML = 'Ошибка загрузки';
+    container.innerHTML = '<div class="text-rose-400">Ошибка загрузки</div>';
+    console.error('Load instances error:', error);
     return;
   }
 
   container.innerHTML = '';
 
   if (data.length === 0) {
-    container.innerHTML = 'Пока нет заданий';
+    container.innerHTML = '<div class="text-slate-500">Пока нет заданий</div>';
     return;
   }
 
   data.forEach(inst => {
     const el = document.createElement('div');
-    el.className = 'p-3 rounded-xl bg-black/30 space-y-1';
+    el.className = 'p-4 rounded-xl bg-black/30 space-y-3';
 
-    const proofHTML = inst.proof_url
-      ? `<div class="pt-2">
-           ${inst.proof_type === 'image'
-             ? `<img src="${inst.proof_url}" class="w-full max-h-40 object-cover rounded" />`
-             : `<a href="${inst.proof_url}" target="_blank" class="text-violet-400 text-xs underline">Открыть видео</a>`
-           }
-         </div>`
-      : '';
+    // 🖼️ Обработка proof (изображения и видео)
+    let proofHTML = '';
+    
+    if (inst.proof_url) {
+      // Конвертируем Lightshot ссылки в прямые
+      let imageUrl = inst.proof_url;
+      
+      if (imageUrl.includes('prnt.sc/')) {
+        // Для Lightshot нужно использовать специальный формат
+        const id = imageUrl.split('prnt.sc/')[1];
+        imageUrl = https://prnt.sc/${id};
+        
+        proofHTML = `
+          <div class="pt-2 space-y-2">
+            <a href="${imageUrl}" target="_blank" class="text-violet-400 text-xs underline block">
+              📷 Открыть скриншот Lightshot
+            </a>
+            <div class="text-[10px] text-slate-500">
+              (Lightshot не поддерживает прямые ссылки на изображения)
+            </div>
+          </div>
+        `;
+      } else if (inst.proof_type === 'image') {
+        // Обычные изображения
+        proofHTML = `
+          <div class="pt-2">
+            <img 
+              src="${imageUrl}" 
+              class="w-full max-h-60 object-contain rounded-xl border border-white/10"
+              onerror="this.parentElement.innerHTML='<p class=\\'text-rose-400 text-xs\\'>❌ Не удалось загрузить изображение</p>'"
+            />
+          </div>
+        `;
+      } else if (inst.proof_type === 'video') {
+        // Видео
+        proofHTML = `
+          <div class="pt-2">
+            <a href="${imageUrl}" target="_blank" class="text-violet-400 text-xs underline">
+              🎥 Открыть видео
+            </a>
+          </div>
+        `;
+      } else {
+        // Неизвестный тип
+        proofHTML = `
+          <div class="pt-2">
+            <a href="${imageUrl}" target="_blank" class="text-violet-400 text-xs underline">
+              🔗 Открыть ссылку
+            </a>
+          </div>
+        `;
+      }
+    }
+
+    // 🎨 Цвет статуса
+    const statusColors = {
+      active: 'text-blue-400',
+      reported: 'text-amber-400',
+      approved: 'text-emerald-400',
+      rejected: 'text-rose-400',
+      failed: 'text-slate-500'
+    };
+
+    const statusColor = statusColors[inst.status] || 'text-slate-400';
 
     el.innerHTML = `
-      <div class="font-bold">${inst.player_name}</div>
-      <div class="text-xs">${inst.tasks?.title || '—'}</div>
-      <div class="text-xs">Статус: ${inst.status}</div>
+      <div class="flex justify-between items-start">
+        <div class="flex-1">
+          <div class="font-bold text-white">${inst.player_name}</div>
+          <div class="text-sm text-slate-300">${inst.tasks?.title || '—'}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs ${statusColor} font-bold uppercase">${inst.status}</div>
+          <div class="text-xs text-slate-500">
+            ${inst.tasks?.reward || 0} TON
+          </div>
+        </div>
+      </div>
+
+      <div class="text-[10px] text-slate-500">
+        Начато: ${new Date(inst.started_at).toLocaleString('ru-RU')}
+        ${inst.resolved_at ? <br>Решено: ${new Date(inst.resolved_at).toLocaleString('ru-RU')} : ''}
+      </div>
+
       ${proofHTML}
+
       ${
         inst.status === 'reported'
           ? `
-        <div class="flex gap-2 pt-2">
+        <div class="flex gap-2 pt-3 border-t border-white/10">
           <button
-            class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold"
+            class="flex-1 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all active:scale-95"
             onclick="resolveInstance('${inst.id}', true)"
           >
-            Принять
-          </button>
+            ✅ Принять
+            </button>
           <button
-            class="bg-rose-600 px-3 py-1 rounded text-xs font-bold"
+            class="flex-1 bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all active:scale-95"
             onclick="resolveInstance('${inst.id}', false)"
           >
-            Отклонить
+            ❌ Отклонить
           </button>
         </div>
       `
@@ -337,48 +411,96 @@ async function loadInstances() {
    RESOLVE INSTANCE
 ===================== */
 async function resolveInstance(instanceId, approve) {
-  const { data: inst } = await window.sb
-    .from('task_instances')
-    .select(`
-      *,
-      tasks (reward),
-      users!task_instances_player_tg_id_fkey (id, stream_link)
-    `)
-    .eq('id', instanceId)
-    .single();
+  try {
+    // 1️⃣ Получаем данные задания
+    const { data: inst, error: fetchError } = await window.sb
+      .from('task_instances')
+      .select(`
+        *,
+        tasks (reward),
+        users!task_instances_player_tg_id_fkey (id, stream_link)
+      `)
+      .eq('id', instanceId)
+      .single();
 
-  if (!inst) return;
+    if (fetchError) {
+      console.error('Fetch error:', fetchError);
+      alert('Ошибка получения данных: ' + fetchError.message);
+      return;
+    }
 
-  const status = approve ? 'approved' : 'rejected';
+    if (!inst) {
+      alert('Задание не найдено');
+      return;
+    }
 
-  await window.sb
-    .from('task_instances')
-    .update({
-      status,
-      resolved_at: new Date().toISOString(),
-      resolved_by: currentAdmin?.id || null
-    })
-    .eq('id', instanceId);
+    console.log('📦 Instance data:', inst);
 
-  const reward = Number(inst.tasks?.reward || 0);
+    const status = approve ? 'approved' : 'rejected';
+    const reward = Number(inst.tasks?.reward || 0);
 
-  const playerTag = inst.users?.stream_link
-    ? `[${inst.player_name}](${inst.users.stream_link})`
-    : inst.player_name;
+    // 2️⃣ Обновляем статус задания
+    const { error: updateError } = await window.sb
+      .from('task_instances')
+      .update({
+        status,
+        resolved_at: new Date().toISOString(),
+        resolved_by: currentAdmin?.id || null
+      })
+      .eq('id', instanceId);
 
-  sendTelegram(
-    approve
-      ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${playerTag}\n+${reward} TON`
-      : `❌ *ОТКЛОНЕНО*\n👤 ${playerTag}`
-  );
+    if (updateError) {
+      console.error('Update error:', updateError);
+      alert('Ошибка обновления: ' + updateError.message);
+      return;
+    }
 
-  await logAdmin(
-    approve ? 'TASK_APPROVED' : 'TASK_REJECTED',
-    inst.player_tg_id,
-    approve ? `reward=${reward}` : ''
-  );
+    console.log('✅ Instance updated to:', status);
 
-  loadInstances();
+    // 3️⃣ Если одобрено — начисляем награду
+    if (approve) {
+      const { error: balanceError } = await window.sb
+        .from('users')
+        .update({
+          balance: window.sb.raw(`balance + ${reward}`)
+        })
+        .eq('tg_id', inst.player_tg_id);
+
+      if (balanceError) {
+        console.error('Balance error:', balanceError);
+        alert('Ошибка начисления награды: ' + balanceError.message);
+        return;
+      }
+
+      console.log('💰 Reward added:', reward);
+    }
+
+    // 4️⃣ Telegram уведомление
+    const playerTag = inst.users?.stream_link
+      ? [${inst.player_name}](${inst.users.stream_link})
+      : inst.player_name;
+
+    sendTelegram(
+      approve
+        ? ✅ *ПОДТВЕРЖДЕНО*\n👤 ${playerTag}\n💰 +${reward} TON
+        : ❌ *ОТКЛОНЕНО*\n👤 ${playerTag}
+    );
+
+    // 5️⃣ Логируем действие
+    await logAdmin(
+      approve ? 'TASK_APPROVED' : 'TASK_REJECTED',
+      inst.player_tg_id,
+      approve ? reward=${reward} : ''
+    );
+
+    // 6️⃣ Перезагружаем данные
+    alert(approve ? '✅ Задание одобрено!' : '❌ Задание отклонено');
+    loadInstances();
+
+  } catch (e) {
+    console.error('❌ Resolve error:', e);
+    alert('Критическая ошибка: ' + e.message);
+  }
 }
 
 /* =====================
@@ -802,3 +924,4 @@ window.savePlayer = savePlayer;
 window.toggleBlockFromModal = toggleBlockFromModal;
 window.nextAdminLogs = nextAdminLogs;
 window.prevAdminLogs = prevAdminLogs;
+
