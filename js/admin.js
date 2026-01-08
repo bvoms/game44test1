@@ -305,7 +305,7 @@ async function loadInstances() {
       if (imageUrl.includes('prnt.sc/')) {
         // Для Lightshot нужно использовать специальный формат
         const id = imageUrl.split('prnt.sc/')[1];
-        imageUrl = https://prnt.sc/${id};
+        
         
         proofHTML = `
           <div class="pt-2 space-y-2">
@@ -924,4 +924,5 @@ window.savePlayer = savePlayer;
 window.toggleBlockFromModal = toggleBlockFromModal;
 window.nextAdminLogs = nextAdminLogs;
 window.prevAdminLogs = prevAdminLogs;
+
 
