@@ -1,4 +1,3 @@
-
 /* =====================
    VIEWS
 ===================== */
@@ -6,7 +5,7 @@ const views = [
   'tasks',
   'links',
   'bank',
-  'market',
+  'leaderboard',
   'profile'
 ];
 
@@ -58,6 +57,11 @@ function switchTab(tab) {
       if (window.Telegram?.WebApp?.HapticFeedback) {
         Telegram.WebApp.HapticFeedback.impactOccurred('light');
       }
+    }
+
+    // Load data when switching to leaderboard
+    if (tab === 'leaderboard' && window.loadLeaderboard) {
+      window.loadLeaderboard();
     }
   }, 150);
 
