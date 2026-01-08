@@ -134,7 +134,7 @@ async function createTask() {
     available_until = new Date(availableUntilInput).toISOString();
   }
 
-  const { error } = await supabase.from('tasks').insert({
+  const { error } = await sb.from('tasks').insert({
     title,
     description,
     reward,
@@ -669,6 +669,7 @@ function prevAdminLogs() {
   adminLogsPage--;
   loadAdminLogs();
 }
+
 
 
 
