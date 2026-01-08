@@ -8,11 +8,14 @@
 ===================== */
 const TG_BOT_TOKEN = '8321050426:AAH4fKadiex7i9NQnC7T2ZyjscRknQgFKlI';
 const TG_CHAT_ID = '-1003693227904';
+
 const playersFilterState = {
   search: '',
   faction: '',
   status: ''
 };
+
+let currentAdmin = null;
 
 function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
@@ -33,47 +36,61 @@ function sendTelegram(text) {
    INIT
 ===================== */
 document.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('admin_auth') === '1') {
+  const adminData = sessionStorage.getItem('admin_auth');
+  if (adminData) {
+    currentAdmin = JSON.parse(adminData);
     showPanel();
     loadUsers();
     loadInstances();
     loadPlayers();
     loadAdminLogs();
+    loadAllTasks();
     subscribePlayersRealtime();
      
-     ['players-search', 'players-faction', 'players-status'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', () => {
-  playersFilterState.search =
-    document.getElementById('players-search')?.value.toLowerCase() || '';
-
-  playersFilterState.faction =
-    document.getElementById('players-faction')?.value || '';
-
-  playersFilterState.status =
-    document.getElementById('players-status')?.value || '';
-
-  loadPlayers();
-});
-});
+    ['players-search', 'players-faction', 'players-status'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => {
+        playersFilterState.search =
+          document.getElementById('players-search')?.value.toLowerCase() || '';
+        playersFilterState.faction =
+          document.getElementById('players-faction')?.value || '';
+        playersFilterState.status =
+          document.getElementById('players-status')?.value || '';
+        loadPlayers();
+      });
+    });
   }
 });
 
 /* =====================
    AUTH
 ===================== */
-function tryLogin() {
+async function tryLogin() {
   const login = document.getElementById('auth-login')?.value?.trim();
   const pass = document.getElementById('auth-pass')?.value?.trim();
   const error = document.getElementById('auth-error');
 
-  if (login === 'game44' && pass === 'thewanga') {
-    sessionStorage.setItem('admin_auth', '1');
+  if (!login || !pass) {
+    error?.classList.remove('hidden');
+    return;
+  }
+
+  const { data: admin } = await window.sb
+    .from('admins')
+    .select('*')
+    .eq('username', login)
+    .eq('password_hash', pass)
+    .maybeSingle();
+
+  if (admin) {
+    currentAdmin = admin;
+    sessionStorage.setItem('admin_auth', JSON.stringify(admin));
     showPanel();
     loadUsers();
     loadInstances();
     loadPlayers();
     loadAdminLogs();
+    loadAllTasks();
     subscribePlayersRealtime();
   } else {
     error?.classList.remove('hidden');
@@ -88,6 +105,11 @@ function logout() {
 function showPanel() {
   document.getElementById('admin-auth').style.display = 'none';
   document.getElementById('admin-panel').classList.remove('hidden');
+  
+  const welcomeEl = document.getElementById('admin-welcome');
+  if (welcomeEl && currentAdmin) {
+    welcomeEl.textContent = `Привет, ${currentAdmin.display_name}`;
+  }
 }
 
 /* =====================
@@ -99,7 +121,7 @@ async function loadUsers() {
 
   select.innerHTML = `<option value="">Общее задание</option>`;
 
-  const { data, error } = await sb.from('users').select('tg_id, id');
+  const { data, error } = await window.sb.from('users').select('tg_id, id');
   if (error) return;
 
   data.forEach(u => {
@@ -118,28 +140,27 @@ async function createTask() {
   const description = document.getElementById('task-desc').value.trim();
   const reward = Number(document.getElementById('task-reward').value);
   const duration = Number(document.getElementById('task-duration').value);
+  const faction = document.getElementById('task-faction').value || null;
+  const target = document.getElementById('task-target').value || null;
 
-  const isTimed = document.getElementById('task-is-timed').checked;
-  const availableUntilInput =
-    document.getElementById('task-available-until').value;
+  const availableFrom = document.getElementById('task-available-from').value || null;
+  const availableUntil = document.getElementById('task-available-until').value || null;
 
-  let available_until = null;
-
-  if (isTimed) {
-    if (!availableUntilInput) {
-      alert('Укажи время доступности');
-      return;
-    }
-
-    available_until = new Date(availableUntilInput).toISOString();
+  if (!title || !reward || !duration) {
+    alert('Заполните обязательные поля');
+    return;
   }
 
-  const { error } = await sb.from('tasks').insert({
+  const { error } = await window.sb.from('tasks').insert({
     title,
     description,
     reward,
-    duration_seconds: duration,
-    available_until
+    duration_minutes: duration,
+    faction,
+    target,
+    available_from: availableFrom ? new Date(availableFrom).toISOString() : null,
+    available_until: availableUntil ? new Date(availableUntil).toISOString() : null,
+    is_active: true
   });
 
   if (error) {
@@ -148,9 +169,98 @@ async function createTask() {
     return;
   }
 
+  await logAdmin('TASK_CREATED', null, title);
+
   alert('Задание создано');
   location.reload();
 }
+
+/* =====================
+   LOAD ALL TASKS (admin panel)
+===================== */
+async function loadAllTasks() {
+  const container = document.getElementById('all-tasks-container');
+  if (!container) return;
+
+  const { data: tasks, error } = await window.sb
+    .from('tasks')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    container.innerHTML = 'Ошибка загрузки';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  if (!tasks || tasks.length === 0) {
+    container.innerHTML = 'Пока нет заданий';
+    return;
+  }
+
+  tasks.forEach(task => {
+    const el = document.createElement('div');
+    el.className = 'p-4 rounded-xl bg-black/30 space-y-2';
+
+    const statusBadge = task.is_active
+      ? '<span class="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded">АКТИВНО</span>'
+      : '<span class="text-xs bg-slate-700/50 text-slate-400 px-2 py-1 rounded">ОТКЛЮЧЕНО</span>';
+
+    el.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div class="flex-1">
+          <div class="font-bold">${task.title}</div>
+          <div class="text-xs text-slate-400">${task.description || '—'}</div>
+        </div>
+        ${statusBadge}
+      </div>
+      <div class="text-xs text-slate-500">
+        Награда: ${task.reward} TON | Время: ${task.duration_minutes} мин
+      </div>
+      ${task.faction ? `<div class="text-xs">Фракция: ${task.faction}</div>` : ''}
+      ${task.target ? `<div class="text-xs">Для: ${task.target}</div>` : ''}
+      ${task.available_from ? `<div class="text-xs">С: ${new Date(task.available_from).toLocaleString()}</div>` : ''}
+      ${task.available_until ? `<div class="text-xs">До: ${new Date(task.available_until).toLocaleString()}</div>` : ''}
+      <div class="flex gap-2 pt-2">
+        <button
+          onclick="toggleTaskActive('${task.id}', ${!task.is_active})"
+          class="px-3 py-1 rounded text-xs font-bold ${task.is_active ? 'bg-slate-600' : 'bg-emerald-600'}">
+          ${task.is_active ? 'Отключить' : 'Включить'}
+        </button>
+        <button
+          onclick="deleteTask('${task.id}')"
+          class="px-3 py-1 rounded text-xs font-bold bg-rose-600">
+          Удалить
+        </button>
+      </div>
+    `;
+
+    container.appendChild(el);
+  });
+}
+
+window.toggleTaskActive = async (taskId, newStatus) => {
+  await window.sb
+    .from('tasks')
+    .update({ is_active: newStatus })
+    .eq('id', taskId);
+
+  await logAdmin('TASK_TOGGLED', null, `task_id=${taskId}, active=${newStatus}`);
+  loadAllTasks();
+};
+
+window.deleteTask = async (taskId) => {
+  if (!confirm('Удалить задание?')) return;
+
+  await window.sb
+    .from('tasks')
+    .delete()
+    .eq('id', taskId);
+
+  await logAdmin('TASK_DELETED', null, `task_id=${taskId}`);
+  loadAllTasks();
+};
 
 /* =====================
    LOAD TASK INSTANCES
@@ -159,9 +269,12 @@ async function loadInstances() {
   const container = document.getElementById('instances-container');
   if (!container) return;
 
-  const { data, error } = await sb
+  const { data, error } = await window.sb
     .from('task_instances')
-    .select('*')
+    .select(`
+      *,
+      tasks (title, reward)
+    `)
     .order('started_at', { ascending: false });
 
   if (error) {
@@ -180,9 +293,20 @@ async function loadInstances() {
     const el = document.createElement('div');
     el.className = 'p-3 rounded-xl bg-black/30 space-y-1';
 
+    const proofHTML = inst.proof_url
+      ? `<div class="pt-2">
+           ${inst.proof_type === 'image'
+             ? `<img src="${inst.proof_url}" class="w-full max-h-40 object-cover rounded" />`
+             : `<a href="${inst.proof_url}" target="_blank" class="text-violet-400 text-xs underline">Открыть видео</a>`
+           }
+         </div>`
+      : '';
+
     el.innerHTML = `
       <div class="font-bold">${inst.player_name}</div>
+      <div class="text-xs">${inst.tasks?.title || '—'}</div>
       <div class="text-xs">Статус: ${inst.status}</div>
+      ${proofHTML}
       ${
         inst.status === 'reported'
           ? `
@@ -213,9 +337,13 @@ async function loadInstances() {
    RESOLVE INSTANCE
 ===================== */
 async function resolveInstance(instanceId, approve) {
-  const { data: inst } = await sb
+  const { data: inst } = await window.sb
     .from('task_instances')
-    .select('*')
+    .select(`
+      *,
+      tasks (reward),
+      users!task_instances_player_tg_id_fkey (id, stream_link)
+    `)
     .eq('id', instanceId)
     .single();
 
@@ -223,71 +351,41 @@ async function resolveInstance(instanceId, approve) {
 
   const status = approve ? 'approved' : 'rejected';
 
-  await sb.from('task_instances')
-  .update({
-    status,
-    resolved_at: new Date().toISOString()
-  })
-  .eq('id', instanceId);
-
-let reward = 0;
-
-if (approve) {
-  const { data: task } = await sb
-    .from('tasks')
-    .select('reward')
-    .eq('id', inst.task_id)
-    .single();
-
-  reward = Number(task.reward || 0);
-
-  const { data: user } = await sb
-    .from('users')
-    .select('balance')
-    .eq('tg_id', inst.player_tg_id)
-    .single();
-
-  await sb
-    .from('users')
+  await window.sb
+    .from('task_instances')
     .update({
-      balance: Number(user.balance || 0) + reward
+      status,
+      resolved_at: new Date().toISOString(),
+      resolved_by: currentAdmin?.id || null
     })
-    .eq('tg_id', inst.player_tg_id);
-}
+    .eq('id', instanceId);
 
-// 🔔 TELEGRAM
-sendTelegram(
-  approve
-    ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${inst.player_name}\n+${reward}`
-    : `❌ *ОТКЛОНЕНО*\n👤 ${inst.player_name}`
-);
+  const reward = Number(inst.tasks?.reward || 0);
 
-// 🧾 ADMIN LOG — СТРОГО ПОСЛЕ ВСЕГО
-await logAdmin(
-  approve ? 'TASK_APPROVED' : 'TASK_REJECTED',
-  inst.player_tg_id,
-  approve ? `reward=${reward}` : ''
-);
+  const playerTag = inst.users?.stream_link
+    ? `[${inst.player_name}](${inst.users.stream_link})`
+    : inst.player_name;
 
-loadInstances();
+  sendTelegram(
+    approve
+      ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${playerTag}\n+${reward} TON`
+      : `❌ *ОТКЛОНЕНО*\n👤 ${playerTag}`
+  );
 
+  await logAdmin(
+    approve ? 'TASK_APPROVED' : 'TASK_REJECTED',
+    inst.player_tg_id,
+    approve ? `reward=${reward}` : ''
+  );
+
+  loadInstances();
 }
 
 /* =====================
-   EXPOSE
+   PLAYERS
 ===================== */
-window.tryLogin = tryLogin;
-window.logout = logout;
-window.createTask = createTask;
-window.resolveInstance = resolveInstance;
-window.openPlayerModal = openPlayerModal;
-window.closePlayerModal = closePlayerModal;
-window.savePlayer = savePlayer;
-window.toggleBlockFromModal = toggleBlockFromModal;
-
 function highlight(text, query) {
   if (!query) return text;
-
   return text.replace(
     new RegExp(`(${query})`, 'gi'),
     '<span class="text-violet-400 font-black">$1</span>'
@@ -308,7 +406,7 @@ async function loadPlayers() {
 
   const { search, faction, status } = playersFilterState;
 
-  const { data: players, error } = await sb
+  const { data: players, error } = await window.sb
     .from('users')
     .select('*')
     .order('created_at', { ascending: false });
@@ -353,14 +451,16 @@ async function loadPlayers() {
     `;
     return;
   }
-const countEl = document.getElementById('players-count');
-if (countEl) countEl.textContent = filtered.length;
+
+  const countEl = document.getElementById('players-count');
+  if (countEl) countEl.textContent = filtered.length;
+
   filtered.forEach(p => {
     const tr = document.createElement('tr');
     tr.className = `
-  transition-all cursor-pointer
-  ${p.is_blocked ? 'bg-rose-900/30 hover:bg-rose-900/50' : 'hover:bg-white/5'}
-`;
+      transition-all cursor-pointer
+      ${p.is_blocked ? 'bg-rose-900/30 hover:bg-rose-900/50' : 'hover:bg-white/5'}
+    `;
     tr.onclick = () => openPlayerModal(p);
 
     tr.innerHTML = `
@@ -372,11 +472,11 @@ if (countEl) countEl.textContent = filtered.length;
         </div>
         <div>
           <div class="font-bold">
-  ${highlight(p.id, search)}
-</div>
-<div class="text-xs text-slate-400">
-  ${highlight(p.tg_id, search)}
-</div>
+            ${highlight(p.id, search)}
+          </div>
+          <div class="text-xs text-slate-400">
+            ${highlight(p.tg_id, search)}
+          </div>
         </div>
       </td>
 
@@ -400,27 +500,28 @@ if (countEl) countEl.textContent = filtered.length;
 
       <td class="text-right pr-3">
         <button
-  onclick="event.stopPropagation(); toggleBlock('${p.tg_id}', ${p.is_blocked}, this)"
-  class="px-3 py-1 rounded-lg text-xs font-black transition-all
-  active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-  ${p.is_blocked
-    ? 'bg-emerald-600 hover:bg-emerald-500'
-    : 'bg-rose-600 hover:bg-rose-500'}">
-  ${p.is_blocked ? 'UNBLOCK' : 'BLOCK'}
-</button>
+          onclick="event.stopPropagation(); toggleBlock('${p.tg_id}', ${p.is_blocked}, this)"
+          class="px-3 py-1 rounded-lg text-xs font-black transition-all
+          active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+          ${p.is_blocked
+            ? 'bg-emerald-600 hover:bg-emerald-500'
+            : 'bg-rose-600 hover:bg-rose-500'}">
+          ${p.is_blocked ? 'UNBLOCK' : 'BLOCK'}
+        </button>
       </td>
     `;
 
     table.appendChild(tr);
   });
 }
+
 async function toggleBlock(tgId, isBlocked, btn) {
   if (!btn) return;
 
   btn.disabled = true;
   btn.textContent = '...';
 
-  await sb
+  await window.sb
     .from('users')
     .update({ is_blocked: !isBlocked })
     .eq('tg_id', tgId);
@@ -433,13 +534,12 @@ async function toggleBlock(tgId, isBlocked, btn) {
   loadPlayers();
 }
 
-
 let playersChannel = null;
 
 function subscribePlayersRealtime() {
   if (playersChannel) return;
 
-  playersChannel = sb
+  playersChannel = window.sb
     .channel('realtime-users')
     .on(
       'postgres_changes',
@@ -470,23 +570,36 @@ function openPlayerModal(player) {
   document.getElementById('pm-balance').value = player.balance;
   document.getElementById('pm-skulls').value = player.skulls;
 
+  const avatarImg = document.getElementById('pm-avatar');
+  const avatarPlaceholder = document.getElementById('pm-avatar-placeholder');
+
+  if (player.avatar_url && avatarImg) {
+    avatarImg.src = player.avatar_url;
+    avatarImg.classList.remove('hidden');
+    avatarPlaceholder.classList.add('hidden');
+  } else {
+    avatarImg.classList.add('hidden');
+    avatarPlaceholder.classList.remove('hidden');
+    avatarPlaceholder.textContent = player.id[0] || 'U';
+  }
+
   const btn = document.getElementById('pm-block-btn');
   btn.textContent = player.is_blocked ? 'UNBLOCK' : 'BLOCK';
-  btn.className =
-    `flex-1 p-3 rounded font-black uppercase ${
-      player.is_blocked ? 'bg-emerald-600' : 'bg-rose-600'
-    }`;
+  btn.className = `flex-1 p-3 rounded font-black uppercase ${
+    player.is_blocked ? 'bg-emerald-600' : 'bg-rose-600'
+  }`;
 
- document.getElementById('player-modal').classList.remove('hidden');
-loadPlayerTasks(player.tg_id);
+  document.getElementById('player-modal').classList.remove('hidden');
+  loadPlayerTasks(player.tg_id);
 }
+
 async function loadPlayerTasks(tgId) {
   const container = document.getElementById('player-tasks');
   if (!container) return;
 
   container.innerHTML = `<div class="text-slate-500">Загрузка...</div>`;
 
-  const { data, error } = await sb
+  const { data, error } = await window.sb
     .from('task_instances')
     .select(`
       id,
@@ -519,6 +632,7 @@ async function loadPlayerTasks(tgId) {
       t.status === 'approved' ? 'text-emerald-400'
       : t.status === 'rejected' ? 'text-rose-400'
       : t.status === 'reported' ? 'text-amber-400'
+      : t.status === 'failed' ? 'text-slate-500'
       : 'text-slate-400';
 
     const el = document.createElement('div');
@@ -548,6 +662,7 @@ function closePlayerModal() {
   document.getElementById('player-modal').classList.add('hidden');
   currentPlayer = null;
 }
+
 async function savePlayer() {
   if (!currentPlayer) return;
 
@@ -557,7 +672,7 @@ async function savePlayer() {
   const newBalance = parseFloat(balanceInput.value);
   const newSkulls = parseInt(skullsInput.value, 10);
 
-  await sb
+  await window.sb
     .from('users')
     .update({
       balance: isNaN(newBalance) ? currentPlayer.balance : newBalance,
@@ -574,19 +689,19 @@ async function savePlayer() {
   closePlayerModal();
   loadPlayers();
 }
+
 async function toggleBlockFromModal() {
   if (!currentPlayer) return;
 
   const newStatus = !currentPlayer.is_blocked;
 
-  await sb
+  await window.sb
     .from('users')
     .update({
       is_blocked: newStatus
     })
     .eq('tg_id', currentPlayer.tg_id);
 
-  // обновляем локальное состояние
   currentPlayer.is_blocked = newStatus;
 
   await logAdmin(
@@ -597,13 +712,17 @@ async function toggleBlockFromModal() {
   closePlayerModal();
   loadPlayers();
 }
+
 async function logAdmin(action, target = null, details = '') {
-  await sb.from('admin_logs').insert({
+  await window.sb.from('admin_logs').insert({
+    admin_id: currentAdmin?.id || null,
+    admin_username: currentAdmin?.username || 'system',
     action,
     target,
     details
   });
 }
+
 /* =====================
    ADMIN LOGS PAGINATION
 ===================== */
@@ -621,7 +740,7 @@ async function loadAdminLogs() {
   const from = adminLogsPage * ADMIN_LOGS_LIMIT;
   const to = from + ADMIN_LOGS_LIMIT - 1;
 
-  const { data, error } = await sb
+  const { data, error } = await window.sb
     .from('admin_logs')
     .select('*')
     .order('created_at', { ascending: false })
@@ -646,7 +765,7 @@ async function loadAdminLogs() {
     el.innerHTML = `
       <div class="font-bold">${log.action}</div>
       <div class="text-xs text-slate-400">
-        ${log.target || '—'} • ${new Date(log.created_at).toLocaleString()}
+        ${log.admin_username || '—'} • ${log.target || '—'} • ${new Date(log.created_at).toLocaleString()}
       </div>
       ${log.details ? `<div class="text-xs text-slate-300">${log.details}</div>` : ''}
     `;
@@ -670,25 +789,16 @@ function prevAdminLogs() {
   loadAdminLogs();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* =====================
+   EXPOSE
+===================== */
+window.tryLogin = tryLogin;
+window.logout = logout;
+window.createTask = createTask;
+window.resolveInstance = resolveInstance;
+window.openPlayerModal = openPlayerModal;
+window.closePlayerModal = closePlayerModal;
+window.savePlayer = savePlayer;
+window.toggleBlockFromModal = toggleBlockFromModal;
+window.nextAdminLogs = nextAdminLogs;
+window.prevAdminLogs = prevAdminLogs;
