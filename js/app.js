@@ -12,7 +12,7 @@ window.onload = async () => {
   try {
     console.log('🚀 Starting GAME44 APP...');
 
-    window.showLoader('Инициализация...');
+    window.showLoader('Запуск GAME44...');
 
     // =====================
     // TELEGRAM INIT
@@ -97,18 +97,34 @@ if (user?.is_blocked) {
 
         window.showLoader('Регистрация...');
 
-        await supabase.from('users').insert({
-          id: finalName,
-          tg_id: tgId,
-          faction,
-          balance: 0,
-          skulls: 0,
-          avatar_url: null,
-          stream_link: null,
-          bio: null
-        });
+        const { data: newUser, error } = await supabase
+  .from('users')
+  .insert({
+    id: finalName,
+    tg_id: tgId,
+    faction,
+    balance: 0,
+    skulls: 0,
+    avatar_url: null,
+    stream_link: null,
+    bio: null
+  })
+  .select()
+  .single();
 
-        location.reload();
+if (error || !newUser) {
+  window.hideLoader();
+  window.showNotification('Ошибка регистрации', 'error');
+  return;
+}
+
+// ⛔ НЕ reload
+window.player = newUser;
+
+initApp(newUser);
+await loadInitialData(newUser);
+
+window.hideLoader();
       };
 
       return;
@@ -233,4 +249,5 @@ function showBlockedScreen(user) {
     </div>
   `;
 }
+
 
