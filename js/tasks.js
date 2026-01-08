@@ -510,6 +510,12 @@ function showProofModal() {
     <div class="glass max-w-sm w-full p-6 rounded-3xl space-y-4">
       <h3 class="text-xl font-black uppercase">Доказательство</h3>
       
+      <div class="bg-violet-900/20 p-3 rounded-xl border border-violet-500/30">
+        <p class="text-xs text-violet-300">
+          💡 <b>Рекомендуется:</b> Используйте <a href="https://imgur.com" target="_blank" class="underline">Imgur</a> или <a href="https://imgbb.com" target="_blank" class="underline">ImgBB</a> для загрузки изображений
+        </p>
+      </div>
+      
       <div class="space-y-2">
         <label class="text-xs uppercase text-slate-400">Тип</label>
         <select id="proof-type" class="w-full p-3 rounded-xl bg-black/40 text-white">
@@ -521,7 +527,15 @@ function showProofModal() {
       
       <div id="proof-url-container" class="space-y-2 hidden">
         <label class="text-xs uppercase text-slate-400">Ссылка</label>
-        <input id="proof-url" type="url" placeholder="https://..." class="w-full p-3 rounded-xl bg-black/40 text-white" />
+        <input 
+          id="proof-url" 
+          type="url" 
+          placeholder="https://i.imgur.com/example.png" 
+          class="w-full p-3 rounded-xl bg-black/40 text-white text-sm" 
+        />
+        <p class="text-[10px] text-slate-400">
+          Вставьте прямую ссылку на изображение (должна заканчиваться на .jpg, .png и т.д.)
+        </p>
       </div>
       
       <div class="flex gap-2">
@@ -617,3 +631,4 @@ window.addEventListener('beforeunload', () => {
   stopTimer();
   unsubscribe();
 });
+
