@@ -1,8 +1,7 @@
-// app.js - Улучшенная версия (FIXED)
-
 import { supabase, tg } from './config.js';
 import { loadTasks } from './tasks.js';
 import { loadProfile, loadMarket } from './bank.js';
+import { loadLeaderboard } from './leaderboard.js';
 
 // =====================
 // APP START
@@ -112,7 +111,7 @@ window.onload = async () => {
             faction,
             balance: 0,
             skulls: 0,
-            avatar_url: avatarUrl, // ✅ ВАЖНО: аватар из Telegram
+            avatar_url: avatarUrl,
             stream_link: null,
             bio: null
           })
@@ -125,13 +124,13 @@ window.onload = async () => {
           return;
         }
 
-        // ⛔ НЕ reload
         window.player = newUser;
 
         initApp(newUser);
         await loadInitialData(newUser);
 
-        location.reload();
+        modal?.classList.add('hidden');
+        window.hideLoader();
       };
 
       return;
@@ -176,6 +175,18 @@ function initApp(player) {
 
   document.getElementById('profile-tag').innerText =
     player.id;
+
+  // Header avatar
+  const headerImg = document.getElementById('header-img');
+  const headerPlaceholder = document.getElementById('header-placeholder');
+
+  if (player.avatar_url && headerImg) {
+    headerImg.src = player.avatar_url;
+    headerImg.classList.remove('hidden');
+    headerPlaceholder.classList.add('hidden');
+  } else {
+    headerPlaceholder.textContent = player.id[0] || 'G';
+  }
 }
 
 // =====================
@@ -185,13 +196,10 @@ async function loadInitialData(player) {
   console.log('📊 Loading initial data...');
 
   try {
-    // ❗ ВАЖНО: UI init — НЕ в Promise.all
     await loadTasks(player);
 
-    // Эти функции НЕ должны блокировать запуск
     loadProfile(player);
     loadMarket();
-    // initRocket(); //
 
     console.log('✅ Initial data loaded');
 
@@ -217,7 +225,6 @@ function subscribeToUserUpdates(tgId) {
         filter: `tg_id=eq.${tgId}`
       },
       payload => {
-        // 🔒 Если заблокировали — сразу выключаем апп
         if (payload.new.is_blocked) {
           showBlockedScreen(payload.new);
           return;
@@ -256,3 +263,6 @@ function showBlockedScreen(user) {
     </div>
   `;
 }
+
+// Expose loadLeaderboard globally
+window.loadLeaderboard = loadLeaderboard;
