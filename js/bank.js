@@ -165,7 +165,6 @@ export async function loadProfile(player) {
       placeholder.textContent = (user.id || 'U')[0];
     }
 
-    document.getElementById('edit-avatar').value = user.avatar_url || '';
     document.getElementById('edit-stream').value = user.stream_link || '';
     document.getElementById('edit-bio').value = user.bio || '';
 
@@ -253,17 +252,8 @@ window.buyMarketItem = async (itemId, name, price) => {
 };
 
 /* =====================
-   ROCKET HELPERS
+   SAVE PROFILE (AVATAR FIXED)
 ===================== */
-
-window.setBet = (amount) => {
-  const input = document.getElementById('bet-amount');
-  if (input) input.value = amount;
-};
-
-window.handleRocketAction = () => {
-  window.showNotification('Rocket игра пока в разработке', 'info');
-};
 
 window.saveProfile = async () => {
   const player = window.player;
@@ -276,27 +266,23 @@ window.saveProfile = async () => {
   try {
     window.showLoader('Сохраняем профиль...');
 
-    let avatarUrl; // ⚠️ ВАЖНО: undefined, не null
+    let avatarUrl; // ⚠️ undefined по умолчанию
 
-    // 1️⃣ ЕСЛИ ВЫБРАЛИ ФАЙЛ
-    if (fileInput && fileInput.files && fileInput.files[0]) {
+    if (fileInput?.files?.[0]) {
       const file = fileInput.files[0];
 
-      // 🔒 ЛИМИТ 10 МБ
       const MAX_SIZE = 10 * 1024 * 1024;
       if (file.size > MAX_SIZE) {
         throw new Error('Максимальный размер файла — 10 МБ');
       }
 
-      // 🔒 ТОЛЬКО ИЗОБРАЖЕНИЯ
       if (!file.type.startsWith('image/')) {
         throw new Error('Можно загружать только изображения');
       }
 
       const ext = file.name.split('.').pop();
-      const filePath = `${player.tg_id}.${ext}`; // ❗ БЕЗ avatars/
+      const filePath = `${player.tg_id}.${ext}`;
 
-      // 2️⃣ ЗАГРУЖАЕМ В STORAGE
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, {
@@ -306,7 +292,6 @@ window.saveProfile = async () => {
 
       if (uploadError) throw uploadError;
 
-      // 3️⃣ ПОЛУЧАЕМ PUBLIC URL
       const { data } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
@@ -314,18 +299,15 @@ window.saveProfile = async () => {
       avatarUrl = data.publicUrl;
     }
 
-    // 4️⃣ ГОТОВИМ ОБНОВЛЕНИЕ USERS
     const updateData = {
       stream_link: stream,
       bio
     };
 
-    // ❗ avatar_url обновляем ТОЛЬКО если реально загрузили файл
     if (avatarUrl !== undefined) {
       updateData.avatar_url = avatarUrl;
     }
 
-    // 5️⃣ ПИШЕМ В БАЗУ
     const { error } = await supabase
       .from('users')
       .update(updateData)
@@ -333,7 +315,6 @@ window.saveProfile = async () => {
 
     if (error) throw error;
 
-    // 6️⃣ ОБНОВЛЯЕМ UI
     if (avatarUrl) {
       window.player.avatar_url = avatarUrl;
 
@@ -341,7 +322,7 @@ window.saveProfile = async () => {
       const placeholder = document.getElementById('profile-placeholder');
 
       if (img) {
-        img.src = avatarUrl + '?v=' + Date.now(); // cache bust
+        img.src = avatarUrl + '?v=' + Date.now();
         img.classList.remove('hidden');
         placeholder?.classList.add('hidden');
       }
