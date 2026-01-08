@@ -1,7 +1,6 @@
 // app.js - Улучшенная версия (FIXED)
 
 import { supabase, tg } from './config.js';
-import { initRocket } from './rocket.js';
 import { loadTasks } from './tasks.js';
 import { loadProfile, loadMarket } from './bank.js';
 
@@ -184,7 +183,7 @@ async function loadInitialData(player) {
     // Эти функции НЕ должны блокировать запуск
     loadProfile(player);
     loadMarket();
-    initRocket();
+    // initRocket(); //
 
     console.log('✅ Initial data loaded');
 
@@ -249,5 +248,6 @@ function showBlockedScreen(user) {
     </div>
   `;
 }
+
 
 
