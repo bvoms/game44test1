@@ -1,3 +1,4 @@
+Content is user-generated and unverified.
 /* =====================
    SUPABASE
 ===================== */
@@ -299,14 +300,9 @@ async function loadInstances() {
     let proofHTML = '';
     
     if (inst.proof_url) {
-      // Конвертируем Lightshot ссылки в прямые
       let imageUrl = inst.proof_url;
       
       if (imageUrl.includes('prnt.sc/')) {
-        // Для Lightshot нужно использовать специальный формат
-        const id = imageUrl.split('prnt.sc/')[1];
-        
-        
         proofHTML = `
           <div class="pt-2 space-y-2">
             <a href="${imageUrl}" target="_blank" class="text-violet-400 text-xs underline block">
@@ -318,7 +314,6 @@ async function loadInstances() {
           </div>
         `;
       } else if (inst.proof_type === 'image') {
-        // Обычные изображения
         proofHTML = `
           <div class="pt-2">
             <img 
@@ -329,7 +324,6 @@ async function loadInstances() {
           </div>
         `;
       } else if (inst.proof_type === 'video') {
-        // Видео
         proofHTML = `
           <div class="pt-2">
             <a href="${imageUrl}" target="_blank" class="text-violet-400 text-xs underline">
@@ -338,7 +332,6 @@ async function loadInstances() {
           </div>
         `;
       } else {
-        // Неизвестный тип
         proofHTML = `
           <div class="pt-2">
             <a href="${imageUrl}" target="_blank" class="text-violet-400 text-xs underline">
@@ -376,7 +369,7 @@ async function loadInstances() {
 
       <div class="text-[10px] text-slate-500">
         Начато: ${new Date(inst.started_at).toLocaleString('ru-RU')}
-        ${inst.resolved_at ? <br>Решено: ${new Date(inst.resolved_at).toLocaleString('ru-RU')} : ''}
+        ${inst.resolved_at ? `<br>Решено: ${new Date(inst.resolved_at).toLocaleString('ru-RU')}` : ''}
       </div>
 
       ${proofHTML}
@@ -390,7 +383,7 @@ async function loadInstances() {
             onclick="resolveInstance('${inst.id}', true)"
           >
             ✅ Принять
-            </button>
+          </button>
           <button
             class="flex-1 bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all active:scale-95"
             onclick="resolveInstance('${inst.id}', false)"
@@ -459,11 +452,18 @@ async function resolveInstance(instanceId, approve) {
 
     // 3️⃣ Если одобрено — начисляем награду
     if (approve) {
+      // Получаем текущий баланс
+      const { data: userData } = await window.sb
+        .from('users')
+        .select('balance')
+        .eq('tg_id', inst.player_tg_id)
+        .single();
+
+      const newBalance = (userData?.balance || 0) + reward;
+
       const { error: balanceError } = await window.sb
         .from('users')
-        .update({
-          balance: window.sb.raw(`balance + ${reward}`)
-        })
+        .update({ balance: newBalance })
         .eq('tg_id', inst.player_tg_id);
 
       if (balanceError) {
@@ -477,20 +477,20 @@ async function resolveInstance(instanceId, approve) {
 
     // 4️⃣ Telegram уведомление
     const playerTag = inst.users?.stream_link
-      ? [${inst.player_name}](${inst.users.stream_link})
+      ? `[${inst.player_name}](${inst.users.stream_link})`
       : inst.player_name;
 
     sendTelegram(
       approve
-        ? ✅ *ПОДТВЕРЖДЕНО*\n👤 ${playerTag}\n💰 +${reward} TON
-        : ❌ *ОТКЛОНЕНО*\n👤 ${playerTag}
+        ? `✅ *ПОДТВЕРЖДЕНО*\n👤 ${playerTag}\n💰 +${reward} TON`
+        : `❌ *ОТКЛОНЕНО*\n👤 ${playerTag}`
     );
 
     // 5️⃣ Логируем действие
     await logAdmin(
       approve ? 'TASK_APPROVED' : 'TASK_REJECTED',
       inst.player_tg_id,
-      approve ? reward=${reward} : ''
+      approve ? `reward=${reward}` : ''
     );
 
     // 6️⃣ Перезагружаем данные
@@ -924,5 +924,6 @@ window.savePlayer = savePlayer;
 window.toggleBlockFromModal = toggleBlockFromModal;
 window.nextAdminLogs = nextAdminLogs;
 window.prevAdminLogs = prevAdminLogs;
+
 
 
