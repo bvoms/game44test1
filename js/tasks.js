@@ -126,10 +126,15 @@ export async function loadTasks(player) {
     );
 
     // 3️⃣ Загружаем доступные задания
-    const { data: tasks, error: tasksError } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const now = new Date().toISOString();
+
+const { data: tasks, error: tasksError } = await supabase
+  .from('tasks')
+  .select('*')
+  .or(
+    `available_until.is.null,available_until.gt.${now}`
+  )
+  .order('created_at', { ascending: false });
 
     if (tasksError) {
       console.error('Error loading tasks:', tasksError);
@@ -233,6 +238,23 @@ window.acceptTask = async (taskId, title, duration) => {
   }
 
   try {
+  // 🔒 Проверяем доступность задания
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('available_until')
+    .eq('id', taskId)
+    .single();
+
+  if (
+    task?.available_until &&
+    new Date(task.available_until) < new Date()
+  ) {
+    window.showNotification(
+      '⏳ Задание больше недоступно',
+      'error'
+    );
+    return;
+  }
     window.showLoader('Принимаем задание...');
 
     const deadline = new Date(Date.now() + duration * 60000).toISOString();
@@ -417,3 +439,4 @@ window.addEventListener('beforeunload', () => {
   stopTimer();
   unsubscribe();
 });
+
