@@ -174,32 +174,6 @@ export async function loadProfile(player) {
   }
 }
 
-window.saveProfile = async () => {
-  const player = window.player;
-  if (!player) return;
-
-  try {
-    window.showLoader('Сохраняем...');
-
-    await supabase
-      .from('users')
-      .update({
-        avatar_url: document.getElementById('edit-avatar')?.value || null,
-        stream_link: document.getElementById('edit-stream')?.value || null,
-        bio: document.getElementById('edit-bio')?.value || null
-      })
-      .eq('tg_id', player.tg_id);
-
-    window.hideLoader();
-    window.showNotification('Профиль обновлён', 'success');
-    loadProfile(player);
-
-  } catch (e) {
-    window.hideLoader();
-    window.showNotification('Ошибка сохранения', 'error');
-  }
-};
-
 /* =====================
    MARKET
 ===================== */
@@ -302,33 +276,39 @@ window.saveProfile = async () => {
   try {
     window.showLoader('Сохраняем профиль...');
 
-    let avatarUrl = null;
+    let avatarUrl = player.avatar_url || null;
 
-    // ⬆️ ЕСЛИ ЗАГРУЖАЮТ ФОТО
+    // 1️⃣ ЕСЛИ ВЫБРАЛИ ФОТО
     if (fileInput?.files?.[0]) {
       const file = fileInput.files[0];
-      const ext = file.name.split('.').pop();
-      const fileName = `${player.tg_id}.${ext}`;
 
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Можно загружать только изображения');
+      }
+
+      const ext = file.name.split('.').pop();
+      const filePath = `avatars/${player.tg_id}.${ext}`;
+
+      // 2️⃣ ЗАГРУЗКА В STORAGE
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, file, {
+        .upload(filePath, file, {
           upsert: true,
           contentType: file.type
         });
 
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
+      // 3️⃣ PUBLIC URL
       const { data } = supabase.storage
         .from('avatars')
-        .getPublicUrl(fileName);
+        .getPublicUrl(filePath);
 
       avatarUrl = data.publicUrl;
     }
 
-    await supabase
+    // 4️⃣ ОБНОВЛЯЕМ USERS
+    const { error: updateError } = await supabase
       .from('users')
       .update({
         avatar_url: avatarUrl,
@@ -337,14 +317,26 @@ window.saveProfile = async () => {
       })
       .eq('tg_id', player.tg_id);
 
+    if (updateError) throw updateError;
+
+    // 5️⃣ ОБНОВЛЯЕМ UI СРАЗУ
+    window.player.avatar_url = avatarUrl;
+
+    const img = document.getElementById('profile-img');
+    const placeholder = document.getElementById('profile-placeholder');
+
+    if (img && avatarUrl) {
+      img.src = avatarUrl + '?v=' + Date.now(); // cache-bust
+      img.classList.remove('hidden');
+      placeholder?.classList.add('hidden');
+    }
+
     window.hideLoader();
     window.showNotification('Профиль обновлён', 'success');
-
-    location.reload();
 
   } catch (e) {
     console.error(e);
     window.hideLoader();
-    window.showNotification('Ошибка сохранения профиля', 'error');
+    window.showNotification(e.message || 'Ошибка сохранения профиля', 'error');
   }
 };
