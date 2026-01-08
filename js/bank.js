@@ -133,7 +133,7 @@ window.swapToSkulls = async () => {
 };
 
 /* =====================
-   PROFILE
+   PROFILE (READ ONLY AVATAR)
 ===================== */
 
 export async function loadProfile(player) {
@@ -252,81 +252,28 @@ window.buyMarketItem = async (itemId, name, price) => {
 };
 
 /* =====================
-   SAVE PROFILE (AVATAR FIXED)
+   SAVE PROFILE (NO AVATAR HERE)
 ===================== */
 
 window.saveProfile = async () => {
   const player = window.player;
   if (!player) return;
 
-  const fileInput = document.getElementById('edit-avatar-file');
   const stream = document.getElementById('edit-stream')?.value || null;
   const bio = document.getElementById('edit-bio')?.value || null;
 
   try {
     window.showLoader('Сохраняем профиль...');
 
-    let avatarUrl; // ⚠️ undefined по умолчанию
-
-    if (fileInput?.files?.[0]) {
-      const file = fileInput.files[0];
-
-      const MAX_SIZE = 10 * 1024 * 1024;
-      if (file.size > MAX_SIZE) {
-        throw new Error('Максимальный размер файла — 10 МБ');
-      }
-
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Можно загружать только изображения');
-      }
-
-      const ext = file.name.split('.').pop();
-      const filePath = `${player.tg_id}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, {
-          upsert: true,
-          contentType: file.type
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      avatarUrl = data.publicUrl;
-    }
-
-    const updateData = {
-      stream_link: stream,
-      bio
-    };
-
-    if (avatarUrl !== undefined) {
-      updateData.avatar_url = avatarUrl;
-    }
-
     const { error } = await supabase
       .from('users')
-      .update(updateData)
+      .update({
+        stream_link: stream,
+        bio
+      })
       .eq('tg_id', player.tg_id);
 
     if (error) throw error;
-
-    if (avatarUrl) {
-      window.player.avatar_url = avatarUrl;
-
-      const img = document.getElementById('profile-img');
-      const placeholder = document.getElementById('profile-placeholder');
-
-      if (img) {
-        img.src = avatarUrl + '?v=' + Date.now();
-        img.classList.remove('hidden');
-        placeholder?.classList.add('hidden');
-      }
-    }
 
     window.hideLoader();
     window.showNotification('Профиль обновлён', 'success');
