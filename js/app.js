@@ -126,11 +126,13 @@ window.onload = async () => {
 
         window.player = newUser;
 
+        modal?.classList.add('hidden');
+        
         initApp(newUser);
         await loadInitialData(newUser);
-
-        modal?.classList.add('hidden');
+        
         window.hideLoader();
+        window.showNotification('Добро пожаловать в GAME44! 🎮', 'success');
       };
 
       return;
