@@ -280,7 +280,18 @@ window.saveProfile = async () => {
 
     // 1️⃣ ЕСЛИ ВЫБРАЛИ ФОТО
     if (fileInput?.files?.[0]) {
-      const file = fileInput.files[0];
+  const file = fileInput.files[0];
+
+  // ❗ ЛИМИТ 10 МБ
+  const MAX_SIZE = 10 * 1024 * 1024;
+
+  if (file.size > MAX_SIZE) {
+    throw new Error('Максимальный размер файла — 10 МБ');
+  }
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Можно загружать только изображения');
+  }
 
       if (!file.type.startsWith('image/')) {
         throw new Error('Можно загружать только изображения');
